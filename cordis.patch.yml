@@ -2,14 +2,10 @@
 #
 # The `agent/request` and `system-prompt/assemble` listeners are registered on
 # the root context, so they observe every agent — top-level and in-process
-# subagents alike. Override this row's config from the profile's own
-# cordis.patch.yml (addressed by row id `model-router`, last write wins) to
-# pick the concrete routes. The `default` role is required; `planner` and
-# `subagent` fall back to it when unset.
+# subagents alike. Every role is optional: an unset role (the out-of-the-box
+# default) follows the official model selector. Override this row's config
+# from the profile's own cordis.patch.yml (addressed by row id `model-router`,
+# last write wins) to pick the concrete routes.
 - insert:
     - id: model-router
       name: '@snowamberx/dsh-role-router'
-      config:
-        default:
-          provider: deepseek-official
-          model: deepseek-v4-flash
