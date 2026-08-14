@@ -3,3 +3,4 @@ lib/
 coverage/
 .dsh-tmp/
 *.tsbuildinfo
+session.jsonl
