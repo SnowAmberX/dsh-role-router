@@ -35,7 +35,9 @@ export interface ModelSelectFieldProps {
   load: () => void
   /** Pick one catalog model. */
   onSelect: (value: ModelRole) => void
-  /** Clear the field back to the composition layer. */
+  /** Unset this role (follow the official selector). */
+  onClear: () => void
+  /** Discard the staged edit back to the stored value. */
   onReset: () => void
   /** Field id for a11y labelling. */
   id: string
@@ -82,7 +84,7 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
 
   const close = (): void => setOpen(false)
   const triggerLabel = value === undefined
-    ? t('field.empty')
+    ? t('field.unset')
     : displayModelName(directory, value.provider, value.model)
   const efforts = effortsOf(directory, value)
 
@@ -147,6 +149,22 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
 
       {open && (
         <div id={menuId} className={css.menu} role="listbox" aria-label={props.label}>
+          <button
+            type="button"
+            role="option"
+            aria-selected={value === undefined}
+            className={css.option}
+            onClick={() => {
+              props.onClear()
+              close()
+            }}
+          >
+            <span className={css.optionCopy}>
+              <span className={css.modelName}>{t('field.unset')}</span>
+              <span className={css.description}>{t('field.unsetHint')}</span>
+            </span>
+            <span className={css.check} aria-hidden>{value === undefined ? '✓' : ''}</span>
+          </button>
           {directory.status === 'loading' && (
             <div className={css.status} role="status">{t('directory.loading')}</div>
           )}

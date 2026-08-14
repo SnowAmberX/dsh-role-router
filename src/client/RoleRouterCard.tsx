@@ -30,6 +30,7 @@ function FieldRow(props: {
   directory: RoleRouterCardState['directory']
   writable: boolean
   onSelect: ModelSelectFieldProps['onSelect']
+  onClear: () => void
   onReset: () => void
   load: () => void
 }): ReactNode {
@@ -40,12 +41,13 @@ function FieldRow(props: {
         t={props.t}
         label={props.label}
         hint={props.hint}
-        value={props.field.staged ?? props.field.stored}
+        value={props.field.staged === 'unset' ? undefined : props.field.staged ?? props.field.stored}
         overridden={props.field.overridden}
         disabled={!props.writable}
         directory={props.directory}
         load={props.load}
         onSelect={props.onSelect}
+        onClear={props.onClear}
         onReset={props.onReset}
       />
     </div>
@@ -96,6 +98,7 @@ export function RoleRouterCard(props: RoleRouterCardProps) {
                 writable={state.writable}
                 load={props.loadDirectory}
                 onSelect={value => props.edit('default', value)}
+                onClear={() => props.clear('default')}
                 onReset={() => props.reset('default')}
               />
               <FieldRow
@@ -108,6 +111,7 @@ export function RoleRouterCard(props: RoleRouterCardProps) {
                 writable={state.writable}
                 load={props.loadDirectory}
                 onSelect={value => props.edit('planner', value)}
+                onClear={() => props.clear('planner')}
                 onReset={() => props.reset('planner')}
               />
               <FieldRow
@@ -120,6 +124,7 @@ export function RoleRouterCard(props: RoleRouterCardProps) {
                 writable={state.writable}
                 load={props.loadDirectory}
                 onSelect={value => props.edit('subagent', value)}
+                onClear={() => props.clear('subagent')}
                 onReset={() => props.reset('subagent')}
               />
               <div className={css.actions}>

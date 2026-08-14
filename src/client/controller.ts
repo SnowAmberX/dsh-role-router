@@ -11,12 +11,18 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ModelRole } from '../index.ts'
 import type { RoleRouterDirectory, RoleRouterDirectoryState } from './model-directory.ts'
 
+/** Sentinel marking a staged edit as "unset this role" (follow the official selector). */
+export const UNSET_ROLE = 'unset' as const
+
+/** One staged edit: a concrete route, the unset sentinel, or none. */
+export type StagedEdit = ModelRole | typeof UNSET_ROLE | undefined
+
 /** One card field: the stored value, the staged edit, and override state. */
 export interface RoleFieldState {
   /** Stored value (settings or composition layer). */
   stored: ModelRole | undefined
   /** Staged edit; undefined means the stored value. */
-  staged: ModelRole | undefined
+  staged: StagedEdit
   /** Whether the user layer carries an override for this field. */
   overridden: boolean
   /** Whether a save would write this field. */
@@ -53,7 +59,9 @@ export interface RoleRouterCardFace {
   loadDirectory(): void
   /** Stage one role's model selection. */
   edit(role: 'default' | 'planner' | 'subagent', value: ModelRole): void
-  /** Clear a role's staged edit (back to the stored value). */
+  /** Stage "unset this role" (saved as a clear; the role follows the official selector). */
+  clear(role: 'default' | 'planner' | 'subagent'): void
+  /** Discard a role's staged edit (back to the stored value). */
   reset(role: 'default' | 'planner' | 'subagent'): void
   /** Write every dirty field to its namespace. */
   save(): Promise<void>
@@ -97,7 +105,7 @@ function roleOverridden(scope: SettingsScope<RoleRouterSettingsSection>, role: '
  */
 export class RoleRouterCardController {
   private readonly store: SnapshotStore<RoleRouterCardState>
-  private readonly staged = new Map<'default' | 'planner' | 'subagent', ModelRole | undefined>()
+  private readonly staged = new Map<'default' | 'planner' | 'subagent', StagedEdit>()
   private saving = false
   private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null }
   private readonly directoryDisposers: (() => void)[] = []
@@ -128,7 +136,10 @@ export class RoleRouterCardController {
       const stored = roleValue(roleScope, role)
       const overridden = roleOverridden(roleScope, role)
       const staged = this.staged.get(role)
-      return { stored, staged, overridden, dirty: staged !== undefined && !sameRoute(staged, stored) }
+      const dirty = staged === UNSET_ROLE
+        ? stored !== undefined
+        : staged !== undefined && !sameRoute(staged, stored)
+      return { stored, staged, overridden, dirty }
     }
     const defaultField = fields('default')
     const planner = fields('planner')
@@ -153,7 +164,13 @@ export class RoleRouterCardController {
     this.project()
   }
 
-  /** Clear a role's staged edit (back to the stored value). */
+  /** Stage "unset this role" (saved as a clear; the role follows the official selector). */
+  clear(role: 'default' | 'planner' | 'subagent'): void {
+    this.staged.set(role, UNSET_ROLE)
+    this.project()
+  }
+
+  /** Discard a role's staged edit (back to the stored value). */
   reset(role: 'default' | 'planner' | 'subagent'): void {
     this.staged.delete(role)
     this.project()
@@ -168,6 +185,13 @@ export class RoleRouterCardController {
       for (const role of ['default', 'planner', 'subagent'] as const) {
         const staged = this.staged.get(role)
         if (staged === undefined) continue
+        if (staged === UNSET_ROLE) {
+          if (roleValue(this.scopes.role, role) !== undefined) {
+            writes.push(this.scopes.role.unset(role))
+          }
+          this.staged.delete(role)
+          continue
+        }
         const stored = roleValue(this.scopes.role, role)
         if (sameRoute(staged, stored)) continue
         writes.push(this.scopes.role.set(role, staged))
@@ -192,6 +216,7 @@ export class RoleRouterCardController {
       hooks: { roleRouterCard: this.store },
       loadDirectory: () => { void this.directory.load() },
       edit: (role, value) => this.edit(role, value),
+      clear: (role) => this.clear(role),
       reset: (role) => this.reset(role),
       save: () => this.save(),
       discard: () => this.discard(),
