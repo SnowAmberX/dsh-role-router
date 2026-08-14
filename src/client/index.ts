@@ -93,9 +93,11 @@ export function apply(ctx: ClientContext): void {
   }, RoleRouterCard))
   ctx.effect(() => () => card.dispose(), 'role-router: settings card')
 
-  // The composer-adjacent summary: session default + planner route.
-  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left',
+  // The composer-adjacent summary: session default + planner route. Lives in
+  // the tool row's right zone (next to the model seat) so the summary reads
+  // right-aligned against the send button.
+  ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
+    name: 'conversation.input.right',
     id: 'role-router-models',
     order: 200,
     locale: NS,

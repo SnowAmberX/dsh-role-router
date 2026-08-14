@@ -42,7 +42,7 @@ function FieldRow(props: {
         label={props.label}
         hint={props.hint}
         value={props.field.staged === 'unset' ? undefined : props.field.staged ?? props.field.stored}
-        overridden={props.field.overridden}
+        dirty={props.field.dirty}
         disabled={!props.writable}
         directory={props.directory}
         load={props.load}

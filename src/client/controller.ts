@@ -17,14 +17,12 @@ export const UNSET_ROLE = 'unset' as const
 /** One staged edit: a concrete route, the unset sentinel, or none. */
 export type StagedEdit = ModelRole | typeof UNSET_ROLE | undefined
 
-/** One card field: the stored value, the staged edit, and override state. */
+/** One card field: the stored value, the staged edit, and write state. */
 export interface RoleFieldState {
   /** Stored value (settings or composition layer). */
   stored: ModelRole | undefined
   /** Staged edit; undefined means the stored value. */
   staged: StagedEdit
-  /** Whether the user layer carries an override for this field. */
-  overridden: boolean
   /** Whether a save would write this field. */
   dirty: boolean
 }
@@ -98,12 +96,6 @@ function roleValue(scope: SettingsScope<RoleRouterSettingsSection>, role: 'defau
   return value === FOLLOW_OFFICIAL ? undefined : value
 }
 
-/** Whether the user layer overrides one role object. */
-function roleOverridden(scope: SettingsScope<RoleRouterSettingsSection>, role: 'default' | 'planner' | 'subagent'): boolean {
-  const user = scope.getSnapshot().user as { default?: unknown; planner?: unknown; subagent?: unknown } | undefined
-  return user?.[role] !== undefined
-}
-
 /**
  * Bridges the two settings scopes onto the card's staged form.
  */
@@ -121,9 +113,9 @@ export class RoleRouterCardController {
   ) {
     this.store = createSnapshotStore<RoleRouterCardState>({
       available: false, exposed: false, writable: false, dirty: false, saving: false,
-      default: { stored: undefined, staged: undefined, overridden: false, dirty: false },
-      planner: { stored: undefined, staged: undefined, overridden: false, dirty: false },
-      subagent: { stored: undefined, staged: undefined, overridden: false, dirty: false },
+      default: { stored: undefined, staged: undefined, dirty: false },
+      planner: { stored: undefined, staged: undefined, dirty: false },
+      subagent: { stored: undefined, staged: undefined, dirty: false },
       directory: this.directoryState,
     })
     this.directoryDisposers.push(scopes.role.subscribe(() => this.project()))
@@ -138,12 +130,11 @@ export class RoleRouterCardController {
     this.directoryState = this.directory.store.getSnapshot()
     const fields = (role: 'default' | 'planner' | 'subagent'): RoleFieldState => {
       const stored = roleValue(roleScope, role)
-      const overridden = roleOverridden(roleScope, role)
       const staged = this.staged.get(role)
       const dirty = staged === UNSET_ROLE
         ? stored !== undefined
         : staged !== undefined && !sameRoute(staged, stored)
-      return { stored, staged, overridden, dirty }
+      return { stored, staged, dirty }
     }
     const defaultField = fields('default')
     const planner = fields('planner')

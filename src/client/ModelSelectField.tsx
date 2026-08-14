@@ -25,8 +25,8 @@ export interface ModelSelectFieldProps {
   hint?: string
   /** Current value; undefined renders the empty label. */
   value: ModelRole | undefined
-  /** Whether the stored value is a user-layer override. */
-  overridden: boolean
+  /** Whether the field holds an unsaved staged edit. */
+  dirty: boolean
   /** Whether the card is writable. */
   disabled: boolean
   /** The shared catalog snapshot. */
@@ -141,7 +141,9 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
           </select>
         </div>
       )}
-      {props.overridden && !props.disabled && (
+      {/* Reset only makes sense while this field carries an unsaved edit:
+          it discards the staged change back to the stored value. */}
+      {props.dirty && !props.disabled && (
         <button type="button" className={css.reset} onClick={props.onReset}>
           {t('card.reset')}
         </button>
