@@ -83,6 +83,9 @@ export function apply(ctx: ClientContext): void {
     for (const dispose of stopRemote) dispose()
     directory.dispose()
   }, 'role-router: model directory')
+  // Preload the catalog on apply: without this the fields render model ids
+  // and hide the reasoning-effort picker until the menu's first open.
+  refresh()
 
   // The settings card: staged form over both namespaces.
   const card = new RoleRouterCardController({ role: roleScope }, directory)
