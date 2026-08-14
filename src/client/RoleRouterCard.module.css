@@ -77,6 +77,12 @@
   margin-right: auto;
 }
 
+.saveError {
+  font-size: 0.8em;
+  color: var(--dsw-alias-state-error-primary, inherit);
+  margin-right: auto;
+}
+
 .save,
 .discard {
   padding: 0.4rem 1rem;

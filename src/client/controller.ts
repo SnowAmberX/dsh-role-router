@@ -39,6 +39,8 @@ export interface RoleRouterCardState {
   dirty: boolean
   /** Whether a save is crossing the wire. */
   saving: boolean
+  /** Last save failure text; null when the last save succeeded. */
+  error: string | null
   /** The three role fields. */
   default: RoleFieldState
   planner: RoleFieldState
@@ -75,6 +77,9 @@ interface ScopePair {
 /** The settings sentinel written when a role is explicitly unset (mirrors the host half). */
 const FOLLOW_OFFICIAL = 'follow-official'
 
+/** One writeable section value: a concrete route or the follow-official marker. */
+type RoleSettingsSectionValue = ModelRole | typeof FOLLOW_OFFICIAL
+
 /** The role-router settings section shape (mirrors the host half). */
 interface RoleRouterSettingsSection {
   default?: ModelRole | typeof FOLLOW_OFFICIAL
@@ -103,7 +108,8 @@ export class RoleRouterCardController {
   private readonly store: SnapshotStore<RoleRouterCardState>
   private readonly staged = new Map<'default' | 'planner' | 'subagent', StagedEdit>()
   private saving = false
-  private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null }
+  private saveError: string | null = null
+  private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null, noSession: false }
   private readonly directoryDisposers: (() => void)[] = []
 
   /** @param scopes - the bound settings scope for the role-router namespace. */
@@ -112,7 +118,7 @@ export class RoleRouterCardController {
     private readonly directory: RoleRouterDirectory,
   ) {
     this.store = createSnapshotStore<RoleRouterCardState>({
-      available: false, exposed: false, writable: false, dirty: false, saving: false,
+      available: false, exposed: false, writable: false, dirty: false, saving: false, error: null,
       default: { stored: undefined, staged: undefined, dirty: false },
       planner: { stored: undefined, staged: undefined, dirty: false },
       subagent: { stored: undefined, staged: undefined, dirty: false },
@@ -145,6 +151,7 @@ export class RoleRouterCardController {
       s.exposed = roleSnap.status !== 'unavailable'
       s.writable = roleSnap.writable
       s.saving = this.saving
+      s.error = this.saveError
       s.dirty = defaultField.dirty || planner.dirty || subagent.dirty
       s.default = defaultField
       s.planner = planner
@@ -155,45 +162,65 @@ export class RoleRouterCardController {
 
   /** Stage one role's model selection. */
   edit(role: 'default' | 'planner' | 'subagent', value: ModelRole): void {
+    this.saveError = null
     this.staged.set(role, value)
     this.project()
   }
 
   /** Stage "unset this role" (saved as a clear; the role follows the official selector). */
   clear(role: 'default' | 'planner' | 'subagent'): void {
+    this.saveError = null
     this.staged.set(role, UNSET_ROLE)
     this.project()
   }
 
   /** Discard a role's staged edit (back to the stored value). */
   reset(role: 'default' | 'planner' | 'subagent'): void {
+    this.saveError = null
     this.staged.delete(role)
     this.project()
   }
 
-  /** Write every dirty field to its namespace. */
+  /**
+   * Write every dirty field to its namespace.
+   *
+   * Staged edits survive a failed write: they are cleared only after every
+   * write settles successfully, so a rejected save keeps the form intact for
+   * a retry (and the failure text lands in `state.error`).
+   */
   async save(): Promise<void> {
+    if (this.saving) return
     this.saving = true
+    this.saveError = null
     this.project()
-    try {
-      const writes: Promise<void>[] = []
-      for (const role of ['default', 'planner', 'subagent'] as const) {
-        const staged = this.staged.get(role)
-        if (staged === undefined) continue
-        if (staged === UNSET_ROLE) {
-          // A missing settings key would fall back to the composition layer;
-          // write the explicit marker so the role follows the official
-          // selector even when composition configures it.
-          writes.push(this.scopes.role.set(role, FOLLOW_OFFICIAL))
+    // Snapshot the writes first: role values are re-read from the live scope
+    // so the same-route check compares against the current stored value.
+    const writes: { role: 'default' | 'planner' | 'subagent'; value: RoleSettingsSectionValue }[] = []
+    for (const role of ['default', 'planner', 'subagent'] as const) {
+      const staged = this.staged.get(role)
+      if (staged === undefined) continue
+      const stored = roleValue(this.scopes.role, role)
+      if (staged === UNSET_ROLE) {
+        // A missing settings key would fall back to the composition layer;
+        // write the explicit marker so the role follows the official
+        // selector even when composition configures it. When nothing
+        // configures the role either (no stored value), the marker would be
+        // a no-op — drop the staged edit instead.
+        if (stored === undefined) {
           this.staged.delete(role)
           continue
         }
-        const stored = roleValue(this.scopes.role, role)
-        if (sameRoute(staged, stored)) continue
-        writes.push(this.scopes.role.set(role, staged))
-        this.staged.delete(role)
+        writes.push({ role, value: FOLLOW_OFFICIAL })
+        continue
       }
-      await Promise.all(writes)
+      if (sameRoute(staged, stored)) continue
+      writes.push({ role, value: staged })
+    }
+    try {
+      await Promise.all(writes.map(write => this.scopes.role.set(write.role, write.value)))
+      for (const write of writes) this.staged.delete(write.role)
+    } catch (error) {
+      this.saveError = String(error)
     } finally {
       this.saving = false
       this.project()
@@ -202,6 +229,7 @@ export class RoleRouterCardController {
 
   /** Drop every staged edit. */
   discard(): void {
+    this.saveError = null
     this.staged.clear()
     this.project()
   }

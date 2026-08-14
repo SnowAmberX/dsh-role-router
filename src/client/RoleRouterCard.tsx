@@ -129,6 +129,9 @@ export function RoleRouterCard(props: RoleRouterCardProps) {
               />
               <div className={css.actions}>
                 {state.dirty && <span className={css.dirtyNote} role="status">{t('card.dirty')}</span>}
+                {state.error !== null && (
+                  <span className={css.saveError} role="alert">{t('card.saveFailed')}: {state.error}</span>
+                )}
                 <button type="button" className={css.save} disabled={blocked} onClick={() => void props.save()}>
                   {state.saving ? t('card.saving') : t('card.save')}
                 </button>

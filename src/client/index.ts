@@ -1,9 +1,11 @@
 /**
  * Role-router client plugin: the settings card (default/planner/subagent
- * model pickers) and the composer-adjacent role summary. The card's default
- * fields edit the official `agent-default-model` settings section, so the
- * configured default IS the new-session default selection; planner/subagent
- * live in the `role-router` section this plugin's host half serves.
+ * model pickers) and the composer-adjacent role summary. All three card
+ * fields edit the `role-router` settings section this plugin's host half
+ * serves: a configured role FORCES its model on matching requests, an unset
+ * role follows the official model selector. The settings section is
+ * registered with the composition entry as its base layer, so the card shows
+ * and can override composition-configured routes too.
  *
  * Failure policy: mounting problems are logged, never thrown — the web shell
  * fails the whole boot when a plugin apply throws, and an external plugin
