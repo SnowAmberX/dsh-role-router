@@ -47,6 +47,7 @@ import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-sett
 // plan-mode service augmentation onto the Cordis context.
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-agent-default-model'
 
 /** The plugin's stable Cordis identity. */
 export const name = 'role-router'
@@ -95,6 +96,13 @@ export const ROLE_ROUTER_SETTINGS_NAMESPACE = settingsNamespace('role-router')
 
 /** User settings: per-role routes beyond the session's default selection. */
 export interface RoleRouterSettings {
+  /**
+   * The default model for new sessions. The host half mirrors this into the
+   * official agent-default-model settings (effort preserved), because the
+   * api-proxy settings allowlist exposes only model-provider namespaces and
+   * the hard-coded Web/product lists.
+   */
+  default?: ModelRole
   /** Role used by top-level agents while plan mode is active. */
   planner?: ModelRole
   /** Role used by in-process subagents in every mode. */
@@ -103,6 +111,10 @@ export interface RoleRouterSettings {
 
 /** Schemastery validation for {@link RoleRouterSettings}. */
 export const RoleRouterSettingsSchema: z<RoleRouterSettings> = z.object({
+  default: z.object({
+    provider: z.string().required(),
+    model: z.string().required(),
+  }).default(undefined as unknown as ModelRole),
   planner: z.object({
     provider: z.string().required(),
     model: z.string().required(),
@@ -204,8 +216,44 @@ export function apply(ctx: Context, config: Config): void {
     subagent: composition.subagent,
   }, {
     setSource: current => { source = current },
-    onChange: () => {},
+    onChange: () => syncDefaultToOfficial(),
   })
+
+  // Expose the role-router settings namespace to Web configuration clients:
+  // the api-proxy settings allowlist serves model-provider namespaces plus a
+  // hard-coded Web/product list, and moving namespace exposure into
+  // settings.register() is deferred upstream work. Registering a
+  // configurable-provider directory entry is the sanctioned way for a plugin
+  // to declare a settings namespace the configuration boundary serves.
+  const llm = ctx.get('llm')
+  if (llm !== undefined) {
+    llm.registerConfigurableProviders([{
+      provider: 'role-router',
+      displayName: 'Role router (model routing)',
+      settingsNs: ROLE_ROUTER_SETTINGS_NAMESPACE,
+      settingsPath: [],
+    }])
+  }
+
+  /**
+   * Mirror the configured default route into the official agent-default-model
+   * settings (effort preserved), so a card save becomes the new-session
+   * default selection. Host-side writes bypass the api-proxy allowlist; the
+   * equality check keeps the mirror idempotent against the update it fires.
+   */
+  function syncDefaultToOfficial(): void {
+    const settings = ctx.get('settings')
+    const official = ctx.get('agentDefaultModel')
+    const selected = source().default
+    if (settings === undefined || official === undefined || selected === undefined) return
+    const current = official.currentSelection()
+    if (current.provider === selected.provider && current.model === selected.model) return
+    void settings.replace(settingsNamespace('agent-default-model'), {
+      provider: selected.provider,
+      model: selected.model,
+      ...current.reasoningEffort === undefined ? {} : { reasoningEffort: String(current.reasoningEffort) },
+    })
+  }
 
   /** The override route for one request, or undefined to pass through. */
   const roleTarget = (agent: Agent): ModelRole | undefined => {

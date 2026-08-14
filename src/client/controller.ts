@@ -11,13 +11,6 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ModelRole } from '../index.ts'
 import type { RoleRouterDirectory, RoleRouterDirectoryState } from './model-directory.ts'
 
-/** The official agent-default-model settings section (spelled, not imported — client must not depend on the Host package). */
-export interface AgentDefaultModelSettings {
-  provider?: string
-  model?: string
-  reasoningEffort?: string
-}
-
 /** One card field: the stored value, the staged edit, and override state. */
 export interface RoleFieldState {
   /** Stored value (settings or composition layer). */
@@ -70,8 +63,14 @@ export interface RoleRouterCardFace {
 
 /** The card's per-field write face per namespace. */
 interface ScopePair {
-  default: SettingsScope<AgentDefaultModelSettings>
-  role: SettingsScope<{ planner?: ModelRole; subagent?: ModelRole }>
+  role: SettingsScope<RoleRouterSettingsSection>
+}
+
+/** The role-router settings section shape (mirrors the host half). */
+interface RoleRouterSettingsSection {
+  default?: ModelRole
+  planner?: ModelRole
+  subagent?: ModelRole
 }
 
 /** Deep-compare two role routes (reference-equal when both undefined). */
@@ -81,30 +80,14 @@ function sameRoute(a: ModelRole | undefined, b: ModelRole | undefined): boolean 
 }
 
 /** Extract one role route from a scope snapshot. */
-function roleValue(scope: SettingsScope<{ planner?: ModelRole; subagent?: ModelRole }>, role: 'planner' | 'subagent'): ModelRole | undefined {
+function roleValue(scope: SettingsScope<RoleRouterSettingsSection>, role: 'default' | 'planner' | 'subagent'): ModelRole | undefined {
   return scope.getSnapshot().value?.[role]
 }
 
 /** Whether the user layer overrides one role object. */
-function roleOverridden(
-  scope: SettingsScope<{ planner?: ModelRole; subagent?: ModelRole }>,
-  role: 'planner' | 'subagent',
-): boolean {
-  const user = scope.getSnapshot().user as { planner?: unknown; subagent?: unknown } | undefined
+function roleOverridden(scope: SettingsScope<RoleRouterSettingsSection>, role: 'default' | 'planner' | 'subagent'): boolean {
+  const user = scope.getSnapshot().user as { default?: unknown; planner?: unknown; subagent?: unknown } | undefined
   return user?.[role] !== undefined
-}
-
-/** Whether the user layer overrides the default model's provider (proxy for the pair). */
-function defaultOverridden(scope: SettingsScope<AgentDefaultModelSettings>): boolean {
-  const user = scope.getSnapshot().user as { provider?: unknown } | undefined
-  return user?.provider !== undefined
-}
-
-/** The stored default route from the official section. */
-function defaultStored(scope: SettingsScope<AgentDefaultModelSettings>): ModelRole | undefined {
-  const value = scope.getSnapshot().value
-  if (value?.provider === undefined || value.model === undefined) return undefined
-  return { provider: value.provider, model: value.model }
 }
 
 /**
@@ -117,7 +100,7 @@ export class RoleRouterCardController {
   private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null }
   private readonly directoryDisposers: (() => void)[] = []
 
-  /** @param scopes - the bound settings scopes for both namespaces. */
+  /** @param scopes - the bound settings scope for the role-router namespace. */
   constructor(
     private readonly scopes: ScopePair,
     private readonly directory: RoleRouterDirectory,
@@ -129,38 +112,30 @@ export class RoleRouterCardController {
       subagent: { stored: undefined, staged: undefined, overridden: false, dirty: false },
       directory: this.directoryState,
     })
-    for (const scope of [scopes.default, scopes.role]) {
-      this.directoryDisposers.push(scope.subscribe(() => this.project()))
-    }
+    this.directoryDisposers.push(scopes.role.subscribe(() => this.project()))
     this.directoryDisposers.push(directory.store.subscribe(() => this.project()))
     this.project()
   }
 
   /** Recompute the card snapshot from the live scopes and staged edits. */
   private project(): void {
-    const defaultScope = this.scopes.default
     const roleScope = this.scopes.role
-    const defaultSnap = defaultScope.getSnapshot()
     const roleSnap = roleScope.getSnapshot()
     this.directoryState = this.directory.store.getSnapshot()
     const fields = (role: 'default' | 'planner' | 'subagent'): RoleFieldState => {
-      const stored = role === 'default'
-        ? defaultStored(defaultScope)
-        : roleValue(roleScope, role)
-      const overridden = role === 'default'
-        ? defaultOverridden(defaultScope)
-        : roleOverridden(roleScope, role)
+      const stored = roleValue(roleScope, role)
+      const overridden = roleOverridden(roleScope, role)
       const staged = this.staged.get(role)
       return { stored, staged, overridden, dirty: staged !== undefined && !sameRoute(staged, stored) }
     }
     const defaultField = fields('default')
     const planner = fields('planner')
     const subagent = fields('subagent')
-    const available = defaultSnap.status !== 'loading' && roleSnap.status !== 'loading'
+    const available = roleSnap.status !== 'loading'
     this.store.update((s) => {
       s.available = available
-      s.exposed = defaultSnap.status !== 'unavailable' && roleSnap.status !== 'unavailable'
-      s.writable = defaultSnap.writable && roleSnap.writable
+      s.exposed = roleSnap.status !== 'unavailable'
+      s.writable = roleSnap.writable
       s.saving = this.saving
       s.dirty = defaultField.dirty || planner.dirty || subagent.dirty
       s.default = defaultField
@@ -191,16 +166,9 @@ export class RoleRouterCardController {
       for (const role of ['default', 'planner', 'subagent'] as const) {
         const staged = this.staged.get(role)
         if (staged === undefined) continue
-        const stored = role === 'default'
-          ? defaultStored(this.scopes.default)
-          : roleValue(this.scopes.role, role)
+        const stored = roleValue(this.scopes.role, role)
         if (sameRoute(staged, stored)) continue
-        if (role === 'default') {
-          writes.push(this.scopes.default.set('provider', staged.provider))
-          writes.push(this.scopes.default.set('model', staged.model))
-        } else {
-          writes.push(this.scopes.role.set(role, staged))
-        }
+        writes.push(this.scopes.role.set(role, staged))
         this.staged.delete(role)
       }
       await Promise.all(writes)

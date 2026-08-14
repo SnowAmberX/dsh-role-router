@@ -6,6 +6,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type { ModelRole } from '../index.ts'
@@ -52,17 +53,25 @@ export function ModelSummarySeat(props: ModelSummarySeatProps) {
   const plannerLabel = planner === undefined
     ? t('summary.empty')
     : displayName(directory, planner.provider, planner.model)
+  // Same hover bubble as the composer's leftmost "+" command button:
+  // the official Tooltip (fixed-position bubble from the anchor rect).
   return (
-    <div className={css.seat} title={`${t('summary.default')}: ${defaultLabel} · ${t('summary.planner')}: ${plannerLabel}`}>
-      <span className={css.part}>
-        <span className={css.name}>{t('summary.default')}</span>
-        <span className={css.value}>{defaultLabel}</span>
-      </span>
-      <span className={css.sep} aria-hidden>·</span>
-      <span className={css.part}>
-        <span className={css.name}>{t('summary.planner')}</span>
-        <span className={css.value}>{plannerLabel}</span>
-      </span>
-    </div>
+    <Tooltip
+      label={`${t('summary.default')}: ${defaultLabel} · ${t('summary.planner')}: ${plannerLabel}`}
+      side="top"
+      delayMs={500}
+    >
+      <div className={css.seat}>
+        <span className={css.part}>
+          <span className={css.name}>{t('summary.default')}</span>
+          <span className={css.value}>{defaultLabel}</span>
+        </span>
+        <span className={css.sep} aria-hidden>·</span>
+        <span className={css.part}>
+          <span className={css.name}>{t('summary.planner')}</span>
+          <span className={css.value}>{plannerLabel}</span>
+        </span>
+      </div>
+    </Tooltip>
   )
 }

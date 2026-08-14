@@ -23,7 +23,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import { RoleRouterCard } from './RoleRouterCard.tsx'
-import { RoleRouterCardController, type AgentDefaultModelSettings } from './controller.ts'
+import { RoleRouterCardController } from './controller.ts'
 import { ModelSummarySeat } from './ModelSummarySeat.tsx'
 import { RoleRouterDirectory } from './model-directory.ts'
 import { dictionaries, type RoleRouterKey } from './locales.ts'
@@ -31,10 +31,7 @@ import { dictionaries, type RoleRouterKey } from './locales.ts'
 /** Locale namespace this plugin owns. */
 const NS = 'role-router'
 
-/** The official agent-default-model settings namespace (spelled, not imported: a client must not depend on the Host package). */
-const AGENT_DEFAULT_MODEL_NS = 'agent-default-model'
-
-/** The role-router settings namespace this plugin's host half registers. */
+/** The role-router settings namespace this plugin's host half registers and exposes. */
 const ROLE_ROUTER_NS = 'role-router'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -46,6 +43,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** The role-router settings section shape. */
 interface RoleRouterSettingsSection {
+  default?: ModelRole
   planner?: ModelRole
   subagent?: ModelRole
 }
@@ -67,7 +65,6 @@ function currentSessionId(ctx: ClientContext): SessionId | undefined {
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, dictionaries), 'role-router: dictionaries')
 
-  const defaultScope = ctx.settingsScope.bind<AgentDefaultModelSettings>({ namespace: AGENT_DEFAULT_MODEL_NS })
   const roleScope = ctx.settingsScope.bind<RoleRouterSettingsSection>({ namespace: ROLE_ROUTER_NS })
 
   // Shared catalog for the card's pickers: global groups served through the
@@ -86,7 +83,7 @@ export function apply(ctx: ClientContext): void {
   }, 'role-router: model directory')
 
   // The settings card: staged form over both namespaces.
-  const card = new RoleRouterCardController({ default: defaultScope, role: roleScope }, directory)
+  const card = new RoleRouterCardController({ role: roleScope }, directory)
   ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
     name: 'settings.plugin.item',
     id: 'role-router',
