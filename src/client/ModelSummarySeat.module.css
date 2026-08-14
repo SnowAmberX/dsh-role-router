@@ -1,3 +1,10 @@
+/* The seat owns one dock row above the composer card; the pill hugs the
+   right edge so the summary never squeezes the tool row's controls. */
+.row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .seat {
   display: inline-flex;
   align-items: center;

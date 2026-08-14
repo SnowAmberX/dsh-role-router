@@ -63,24 +63,27 @@ export function ModelSummarySeat(props: ModelSummarySeatProps) {
     ? t('summary.empty')
     : displayName(directory, planner.provider, planner.model)
   // Same hover bubble as the composer's leftmost "+" command button:
-  // the official Tooltip (fixed-position bubble from the anchor rect).
+  // the official Tooltip (fixed-position bubble from the anchor rect). The
+  // seat owns a full dock row and right-aligns the pill inside it.
   return (
-    <Tooltip
-      label={`${t('summary.default')}: ${defaultLabel} · ${t('summary.planner')}: ${plannerLabel}`}
-      side="top"
-      delayMs={500}
-    >
-      <div className={css.seat}>
-        <span className={css.part}>
-          <span className={css.name}>{t('summary.default')}</span>
-          <span className={css.value}>{defaultLabel}</span>
-        </span>
-        <span className={css.sep} aria-hidden>·</span>
-        <span className={css.part}>
-          <span className={css.name}>{t('summary.planner')}</span>
-          <span className={css.value}>{plannerLabel}</span>
-        </span>
-      </div>
-    </Tooltip>
+    <div className={css.row}>
+      <Tooltip
+        label={`${t('summary.default')}: ${defaultLabel} · ${t('summary.planner')}: ${plannerLabel}`}
+        side="top"
+        delayMs={500}
+      >
+        <div className={css.seat}>
+          <span className={css.part}>
+            <span className={css.name}>{t('summary.default')}</span>
+            <span className={css.value}>{defaultLabel}</span>
+          </span>
+          <span className={css.sep} aria-hidden>·</span>
+          <span className={css.part}>
+            <span className={css.name}>{t('summary.planner')}</span>
+            <span className={css.value}>{plannerLabel}</span>
+          </span>
+        </div>
+      </Tooltip>
+    </div>
   )
 }
