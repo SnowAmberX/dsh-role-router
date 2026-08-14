@@ -3,9 +3,10 @@
  *
  * Every agent request is routed by role, with one uniform rule: a role that
  * is configured (settings document over composition config) forces that
- * model; an unset role follows the official agent-default-model selection
- * (the composer model seat / `/model`), read from the authoritative settings
- * source rather than the request-header fold.
+ * model; an unset role passes the request through untouched, so the official
+ * layered selection applies (per-session composer pick > the session's own
+ * latest logged request > the global agent-default-model default — the same
+ * precedence the harness's per-agent model-selection layer resolves).
  * - `default`  — top-level agents outside plan mode
  * - `planner`  — top-level agents while plan mode is active
  * - `subagent` — every in-process subagent (any nesting depth)
@@ -25,7 +26,16 @@
  * adapter-owned `reasoningEffort` unless the route sets one explicitly (the
  * routed model may not support the previous model's effort; `prepareCall`
  * rejects unsupported explicit efforts without clamping), while sampling
- * scalars carry over. Following the official selection preserves its effort.
+ * scalars carry over. Unset roles pass through, preserving whatever the
+ * official selection layer assembled (including its effort).
+ *
+ * Known interplay: a forced planner/subagent route is persisted into the
+ * session's request header, and the official "latest logged request" layer
+ * then treats it as the session's current model — so after a forced
+ * plan-mode round, an unset default role follows the last forced planner
+ * model until the user switches back. This mirrors the harness's own
+ * per-session precedence and keeps the composer summary in step with the
+ * requests (the summary reads the same session-local selection).
  *
  * Auxiliary model calls (compaction, session-title) do not dispatch through
  * `agent/request` and are intentionally unaffected, as are out-of-process
@@ -45,7 +55,6 @@ import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-sett
 // plan-mode service augmentation onto the Cordis context.
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
-import type {} from '@deepseek-ai/dsh-agent-default-model'
 
 /** The plugin's stable Cordis identity. */
 export const name = 'role-router'
@@ -257,31 +266,18 @@ export function apply(ctx: Context, config: Config): void {
 
   /**
    * The effective route for one request: a configured role is forced; an
-   * unset role follows the official agent-default-model selection (the
-   * authoritative settings source, NOT the header fold — which our own
-   * planner routing has already written). No official service mounted leaves
-   * the request untouched.
+   * unset role (and the explicit follow-official marker) returns undefined,
+   * leaving the request untouched so the official per-agent model-selection
+   * layer (composer pick > latest logged request > global default) applies
+   * unchanged — read where it lives, rather than reconstructing it here.
    */
-  const officialRoute = (): ModelRole | undefined => {
-    const official = ctx.get('agentDefaultModel')?.currentSelection()
-    if (official === undefined) return undefined
-    return {
-      provider: official.provider,
-      model: official.model,
-      ...official.reasoningEffort === undefined
-        ? {}
-        : { reasoningEffort: String(official.reasoningEffort) },
-    }
-  }
-
   const roleTarget = (agent: Agent): ModelRole | undefined => {
     const role = classify(agent.session.header.origin, planActive(ctx, agent))
     const fromSettings = source()[role]
-    // The explicit follow-official marker wins over the composition layer.
-    if (fromSettings === FOLLOW_OFFICIAL) return officialRoute()
-    const configured = fromSettings ?? composition[role]
-    if (configured !== undefined) return configured
-    return officialRoute()
+    // The explicit follow-official marker wins over the composition layer and
+    // means "leave the request alone".
+    if (fromSettings === FOLLOW_OFFICIAL) return undefined
+    return fromSettings ?? composition[role]
   }
 
   ctx.on('agent/request', async ({ agent }, next) => {

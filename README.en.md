@@ -33,16 +33,22 @@ root context, so they observe top-level agents and every in-process subagent:
 
 | Role | Requests | Model source |
 |---|---|---|
-| `default` | top-level agents outside plan mode | Configured → **forced** to that model; unset → follows the official selector (composer / `/model` / agent-default-model) |
-| `planner` | top-level agents while plan mode is active | Configured → **forced** to that model; unset → follows the official selector |
-| `subagent` | every in-process subagent request (any depth) | Configured → **forced** to that model; unset → follows the official selector |
+| `default` | top-level agents outside plan mode | Configured → **forced** to that model; unset → **pass-through**, the official layered selection applies |
+| `planner` | top-level agents while plan mode is active | Configured → **forced** to that model; unset → **pass-through**, the official layered selection applies |
+| `subagent` | every in-process subagent request (any depth) | Configured → **forced** to that model; unset → **pass-through**, the official layered selection applies |
+
+An unset role passes the request through untouched: the harness's official
+per-session model-selection layer decides, with its usual precedence —
+explicit in-session switches (composer / `/model`) > the session's own latest
+logged request > the global default (agent-default-model settings). So
+in-session model switches take effect immediately for unset roles, and the
+composer summary always agrees with the actual requests.
 
 Switching models drops an inherited adapter-owned `reasoningEffort` unless
 the role configures an explicit one (the routed model may not support the
 previous model's effort; `prepareCall` rejects unsupported explicit efforts);
-an explicit effort is applied and validated by `prepareCall`. The `default`
-role never rewrites the request, so its effort always comes from the official
-session selection (settable through the default field's effort picker).
+an explicit effort is applied and validated by `prepareCall`. Pass-through
+requests keep everything the official layer assembled, including its effort.
 
 Plan mode is folded from the durable `plan/mode` session events
 (`foldPlanMode`); `ctx.planMode` is consulted first when visible
@@ -62,14 +68,14 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
    `llm/adapters-updated`); after picking a model each field offers an optional
    **reasoning-effort** picker whose levels come from that model's
    `reasoning.efforts` in the catalog (adapter-declared, not hard-coded).
-   - The `default` field edits the official `agent-default-model` settings
-     section directly (field-level writes; without an explicit effort the
-     official one is preserved, with one it is written) — the configured
-     default IS the new-session default selection.
-   - `planner` / `subagent` write the `role-router` settings namespace; a
-     saved setting applies to the next request without a restart.
+   - All three fields (default / planner / subagent) write the `role-router`
+     settings namespace; a saved setting applies to the next request without
+     a restart. A configured role forces its model; an unset role follows the
+     official model selector. The section is registered with the composition
+     entry as its base layer, so composition-configured routes are shown and
+     can be overridden from the card.
 2. **Composer-adjacent summary**: a pill showing
-   `Default model: <current session selection> · planner: <configured>`.
+   `Default model: <configured default or session selection> · planner: <configured>`.
    The official model seat and `/model` stay untouched.
 
 ## Configuration
@@ -94,9 +100,8 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
 ```
 
 Unknown keys and blank provider/model/reasoningEffort values fail loud at
-load. `default` is required for schema compatibility, but the live `default`
-role comes from the official agent-default-model selection (into which the
-plugin can write the default field's explicit effort).
+load. All three roles are optional: an unset role passes requests through to
+the official layered selection; a configured role forces its model.
 
 ### settings (user layer)
 
@@ -137,3 +142,9 @@ enables `preserveSymlinks` so type resolution rides the same flat chain.
   `session.models` RPC (the groups are global).
 - A `planner`/`subagent` provider without a registered adapter fails the
   request with the normal NO_ADAPTER turn error (loud, no silent fallback).
+- Forced routes are persisted into the session's request header, and the
+  official "latest logged request" layer treats that as the session's current
+  model. So with a forced `planner`/`subagent` and an unset `default`, one
+  plan-mode round leaves the session's default following the last planner
+  model (the composer summary shows it too; switch back in the composer at
+  any time). This matches the harness's own per-session precedence.

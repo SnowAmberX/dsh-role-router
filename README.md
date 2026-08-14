@@ -20,11 +20,13 @@
 
 | 角色 | 请求范围 | 模型来源 |
 |---|---|---|
-| `default` | 默认模式下的主代理请求 | 已配置 → **强制使用**配置的模型；未配置 → 跟随官方选择器（composer / `/model` / agent-default-model） |
-| `planner` | 计划模式（plan mode）下的主代理请求 | 已配置 → **强制使用**配置的模型；未配置 → 跟随官方选择器 |
-| `subagent` | 所有进程内子代理请求（任意嵌套深度） | 已配置 → **强制使用**配置的模型；未配置 → 跟随官方选择器 |
+| `default` | 默认模式下的主代理请求 | 已配置 → **强制使用**配置的模型；未配置 → **请求透传**，跟随官方逐层选择 |
+| `planner` | 计划模式（plan mode）下的主代理请求 | 已配置 → **强制使用**配置的模型；未配置 → **请求透传**，跟随官方逐层选择 |
+| `subagent` | 所有进程内子代理请求（任意嵌套深度） | 已配置 → **强制使用**配置的模型；未配置 → **请求透传**，跟随官方逐层选择 |
 
-切换模型时，若角色未配置显式 `reasoningEffort`，则**剥离**继承的 adapter-owned effort（目标模型可能不支持原模型的推理档位；`prepareCall` 会拒绝未受支持的显式 effort）；配置了显式强度则写入并由 `prepareCall` 校验。未配置而**跟随官方选择器**时，保留官方的推理强度（`reasoningEffort`）。
+未配置角色的"跟随官方"是**完全透传**：插件不改动请求，由 harness 官方的每会话模型选择层按既有优先级决定——本次会话内显式切换（composer / `/model`）> 会话最近一次请求记录 > 全局默认模型（agent-default-model 设置）。因此会话内切换模型对未配置角色立即生效，composer 摘要与实际请求保持一致。
+
+切换模型时，若角色未配置显式 `reasoningEffort`，则**剥离**继承的 adapter-owned effort（目标模型可能不支持原模型的推理档位；`prepareCall` 会拒绝未受支持的显式 effort）；配置了显式强度则写入并由 `prepareCall` 校验。透传的请求保留官方层装配的一切，包括推理强度。
 
 计划模式状态从会话日志的 `plan/mode` 事件折叠（`foldPlanMode`）；`ctx.planMode` 可见时优先读取（含 pending 意图）。
 
@@ -59,7 +61,7 @@
       model: deepseek-v4-flash
 ```
 
-未知键、空白 provider/model/reasoningEffort 在加载期直接报错（fail loud）。三个角色均为可选：未配置的角色跟随官方模型选择器（`agentDefaultModel.currentSelection()`），配置了则强制使用。
+未知键、空白 provider/model/reasoningEffort 在加载期直接报错（fail loud）。三个角色均为可选：未配置的角色请求透传，跟随官方逐层选择；配置了则强制使用。
 
 ### settings（用户层）
 
@@ -89,5 +91,6 @@ pnpm test           # vitest（host 路由集成测试 + 配置/分类单测）
 
 - 模型目录是 advisory（adapter 可接受未列出的模型 id），下拉框只列出目录内模型。
 - composer 摘要仅显示 `default` + `planner` 两个角色（`subagent` 不在摘要范围）。
-- 设置页无当前会话时，卡片下拉框显示"打开会话后可加载模型列表"（目录经当前会话的 `session.models` RPC 获取，groups 本身是全局的）。
+- 设置页无当前会话时，卡片下拉框显示"打开一个会话后可加载模型列表"（目录经当前会话的 `session.models` RPC 获取，groups 本身是全局的）。
 - `planner`/`subagent` 配置的 provider 未注册 adapter 时，请求按 harness 常规路径报 NO_ADAPTER 轮次错误（响亮失败，不静默降级）。
+- 强制路由会写入会话的请求头：官方"会话最近一次请求记录"层会把它当作会话当前模型。因此 `planner`/`subagent` 配置了强制模型、而 `default` 未配置时，一次计划模式请求后会话默认模型会沿用最近的 planner 模型（composer 摘要同步显示，可在输入框随时切回）。这与 harness 自身的每会话选择优先级一致。

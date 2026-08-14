@@ -31,6 +31,7 @@ async function harness(
     withPlanMode?: boolean
     reasoning?: LlmModelReasoningInfo
     official?: { provider: string; model: string; reasoningEffort?: string }
+    session?: { provider: string; model: string; reasoningEffort?: string }
   } = {},
 ): Promise<Harness> {
   const ctx = new Context()
@@ -52,9 +53,13 @@ async function harness(
   ctx.llm.registerAdapter(['mock', 'deepseek-official'], adapter)
   const agent = ctx.agentLoop.create(SessionId('router-main'), { provider: 'mock', model: 'mock' })
   // The official model-selection layer real deployments install per agent:
-  // it is the source of the default role and covers the persisted header
-  // after a planner/subagent override changed the request route.
-  installModelSelection(agent.ctx, { current: { provider: 'mock', model: 'mock' }, assembled: undefined })
+  // it applies the session-local selection (composer pick > latest logged
+  // request > global default) downstream of the router, so an unset role
+  // passes through whatever it resolved.
+  installModelSelection(agent.ctx, {
+    current: options.session ?? { provider: 'mock', model: 'mock' },
+    assembled: undefined,
+  })
   return { ctx, agent, adapter }
 }
 
@@ -169,13 +174,49 @@ describe('model-router through the agent loop', () => {
     expect(header.data.header.system).toContain(`You are powered by ${PLANNER.model} via ${PLANNER.provider}.`)
   })
 
-  it('follows the official selection when the default role is unconfigured', async () => {
+  it('passes an unset default role through the per-agent selection, not the global default', async () => {
+    // The root-level global default differs from the per-agent selection; an
+    // unset role must leave the request alone so the official per-session
+    // selection (what a composer switch would produce) survives.
     const official = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
     const { ctx, agent, adapter } = await harness({ planner: PLANNER }, { official })
     adapter.script.push(textResponse('follow official'))
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    expect(lastRequestConfig(agent)).toEqual({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    expect(lastRequestConfig(agent)).toEqual({ provider: 'mock', model: 'mock' })
+  })
+
+  it('passes an unset role through a per-session selection that differs from the global default', async () => {
+    const session = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
+    const { ctx, agent, adapter } = await harness(
+      { planner: PLANNER },
+      {
+        official: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+        session,
+      },
+    )
+    adapter.script.push(textResponse('follow per-session pick'))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
+    await waitForIdle(ctx, agent)
+    expect(lastRequestConfig(agent)).toEqual(session)
+  })
+
+  it('preserves the official reasoning effort when an unset role passes through', async () => {
+    const { ctx, agent, adapter } = await harness(
+      { planner: PLANNER },
+      {
+        reasoning: { efforts: [{ id: ReasoningEffortId('high'), name: 'High' }] },
+        session: { provider: 'mock', model: 'mock', reasoningEffort: 'high' },
+      },
+    )
+    adapter.script.push(textResponse('effort preserved'))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
+    await waitForIdle(ctx, agent)
+    expect(adapter.requests.at(-1)).toMatchObject({
+      provider: 'mock',
+      model: 'mock',
+      reasoningEffort: 'high',
+    })
   })
 
   it('forces the configured default role even when the official selection differs', async () => {
