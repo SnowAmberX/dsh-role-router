@@ -1,0 +1,15 @@
+# @SnowAmberX/dsh-role-router bundle patch: one insert row at the host plane.
+#
+# The `agent/request` and `system-prompt/assemble` listeners are registered on
+# the root context, so they observe every agent — top-level and in-process
+# subagents alike. Override this row's config from the profile's own
+# cordis.patch.yml (addressed by row id `model-router`, last write wins) to
+# pick the concrete routes. The `default` role is required; `planner` and
+# `subagent` fall back to it when unset.
+- insert:
+    - id: model-router
+      name: '@SnowAmberX/dsh-role-router'
+      config:
+        default:
+          provider: deepseek-official
+          model: deepseek-v4-flash

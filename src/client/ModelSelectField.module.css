@@ -1,0 +1,150 @@
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.triggerLabel {
+  white-space: nowrap;
+}
+
+.chevron {
+  font-size: 0.75em;
+  opacity: 0.7;
+}
+
+.hint {
+  font-size: 0.8em;
+  opacity: 0.65;
+  margin-top: 0.15rem;
+}
+
+.reset {
+  margin-top: 0.15rem;
+  font-size: 0.8em;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 18rem;
+  max-width: 26rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border-radius: 8px;
+  background: var(--dsh-surface, #ffffff);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 0.3rem;
+}
+
+.status {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.error,
+.warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.82em;
+  border-radius: 6px;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.warning {
+  color: #8a6d00;
+}
+
+.retry {
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9em;
+}
+
+.group {
+  padding: 0.2rem 0;
+}
+
+.groupTitle {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.optionCopy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.modelName {
+  font-weight: 500;
+}
+
+.description {
+  font-size: 0.78em;
+  opacity: 0.65;
+}
+
+.check {
+  flex-shrink: 0;
+}

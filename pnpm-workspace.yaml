@@ -1,0 +1,4 @@
+# The @deepseek-ai/* peer packages are provided by hand-made symlinks into the
+# DeepSeek Harness checkout (the same flat-fallback mechanism the harness
+# profiles use), so pnpm must not try to fetch them from the registry.
+autoInstallPeers: false

@@ -1,0 +1,105 @@
+.card {
+  list-style: none;
+  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border-radius: 10px;
+  background: var(--dsh-surface, rgba(255, 255, 255, 0.02));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.description {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.chevron {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 1rem 1rem;
+}
+
+.notExposed {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.dirtyNote {
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-right: auto;
+}
+
+.save,
+.discard {
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.save {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+}
+
+.save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.discard {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  text-decoration: underline;
+}
+
+.discard:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

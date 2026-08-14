@@ -1,0 +1,28 @@
+.seat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.3));
+  border-radius: 999px;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.name {
+  opacity: 0.65;
+}
+
+.value {
+  font-weight: 500;
+}
+
+.sep {
+  opacity: 0.4;
+}
