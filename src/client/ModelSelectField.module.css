@@ -8,12 +8,16 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.6rem;
-  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+
+.trigger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .trigger:disabled {
@@ -62,7 +66,7 @@
 
 .effortSelect {
   padding: 0.25rem 0.4rem;
-  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
   background: transparent;
   color: inherit;
@@ -85,10 +89,11 @@
   max-width: 26rem;
   max-height: 22rem;
   overflow-y: auto;
-  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border: 1px solid var(--dsw-alias-border-inverted);
   border-radius: 8px;
-  background: var(--dsh-surface, #ffffff);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  background: var(--dsw-specific-menu);
+  box-shadow: var(--dsw-shadow-lv3);
+  color: var(--dsw-alias-label-primary);
   padding: 0.3rem;
 }
 
@@ -110,11 +115,13 @@
 }
 
 .error {
-  color: #b3261e;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
 }
 
 .warning {
-  color: #8a6d00;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-state-warn-label);
 }
 
 .retry {
@@ -156,7 +163,7 @@
 }
 
 .option:hover {
-  background: rgba(128, 128, 128, 0.12);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .optionCopy {

@@ -11,7 +11,7 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.08rem 0.4rem;
-  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.25));
+  border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 999px;
   font-size: 0.7em;
   line-height: 1.3;

@@ -1,8 +1,13 @@
 .card {
   list-style: none;
-  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
-  background: var(--dsh-surface, rgba(255, 255, 255, 0.02));
+  background: var(--dsw-alias-bg-layer-3);
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.card:hover {
+  border-color: var(--dsw-alias-label-dimmed);
 }
 
 .header {
