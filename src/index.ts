@@ -32,7 +32,7 @@
  * subagent providers (acp, codex, …) whose requests never reach this
  * process's agent loop.
  *
- * @module @SnowAmberX/dsh-role-router
+ * @module @snowamberx/dsh-role-router
  */
 
 import type { Context } from '@deepseek-ai/cordis'

@@ -44,7 +44,7 @@
 
 ```yaml
 - id: model-router
-  name: '@SnowAmberX/dsh-role-router'
+  name: '@snowamberx/dsh-role-router'
   config:
     default:        # 可选；未配置时跟随官方选择器
       provider: deepseek-official
@@ -68,7 +68,7 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add @SnowAmberX/dsh-role-router
+dsh plugin --profile web add @snowamberx/dsh-role-router
 # 本地开发：
 dsh plugin --profile web add link:/path/to/this/repo
 ```

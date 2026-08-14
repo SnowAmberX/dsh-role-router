@@ -78,7 +78,7 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
 
 ```yaml
 - id: model-router
-  name: '@SnowAmberX/dsh-role-router'
+  name: '@snowamberx/dsh-role-router'
   config:
     default:        # optional; unset follows the official selector
       provider: deepseek-official
@@ -107,7 +107,7 @@ composition layer.
 ## Install
 
 ```bash
-dsh plugin --profile web add @SnowAmberX/dsh-role-router
+dsh plugin --profile web add @snowamberx/dsh-role-router
 # local development:
 dsh plugin --profile web add link:/path/to/this/repo
 ```

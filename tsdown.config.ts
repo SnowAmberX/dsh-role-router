@@ -9,4 +9,4 @@ import { clientBundle } from './vendor/tsdown.client.ts'
  * GUI's __ModuleLoader__, CSS Modules inlined with auto-injected
  * <style data-plugin>).
  */
-export default clientBundle('@SnowAmberX/dsh-role-router', ['src/index.ts'])
+export default clientBundle('@snowamberx/dsh-role-router', ['src/index.ts'])
