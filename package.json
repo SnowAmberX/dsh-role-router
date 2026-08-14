@@ -63,5 +63,9 @@
       ],
       "platform": "web"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SnowAmberX/dsh-role-router.git"
   }
 }
