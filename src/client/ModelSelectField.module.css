@@ -30,8 +30,13 @@
 }
 
 .chevron {
-  font-size: 0.75em;
-  opacity: 0.7;
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-caption);
+  transition: transform 120ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
 }
 
 .hint {
