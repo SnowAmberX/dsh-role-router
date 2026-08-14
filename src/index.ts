@@ -92,33 +92,40 @@ export const Config: z<Config> = z.object({
 /** Settings namespace owning the user-configured role routes. */
 export const ROLE_ROUTER_SETTINGS_NAMESPACE = settingsNamespace('role-router')
 
-/** User settings: per-role routes; an unset role follows the official selection. */
+/**
+ * Settings sentinel for "this role is explicitly unset": the request follows
+ * the official selection even when the composition layer configures the role.
+ * A missing key cannot express that (it would fall back to composition), so
+ * the settings card writes this marker instead of clearing the field.
+ */
+export const FOLLOW_OFFICIAL = 'follow-official' as const
+
+/** One configured role route, or the explicit follow-official marker. */
+export type RoleSettingsValue = ModelRole | typeof FOLLOW_OFFICIAL
+
+/** User settings: per-role routes; the follow-official marker wins over composition. */
 export interface RoleRouterSettings {
   /** Role used by top-level agents outside plan mode. */
-  default?: ModelRole
+  default?: RoleSettingsValue
   /** Role used by top-level agents while plan mode is active. */
-  planner?: ModelRole
+  planner?: RoleSettingsValue
   /** Role used by in-process subagents in every mode. */
-  subagent?: ModelRole
+  subagent?: RoleSettingsValue
 }
 
 /** Schemastery validation for {@link RoleRouterSettings}. */
+const roleSettingsValue = z.union([
+  z.object({
+    provider: z.string().required(),
+    model: z.string().required(),
+    reasoningEffort: z.string(),
+  }),
+  z.const(FOLLOW_OFFICIAL),
+])
 export const RoleRouterSettingsSchema: z<RoleRouterSettings> = z.object({
-  default: z.object({
-    provider: z.string().required(),
-    model: z.string().required(),
-    reasoningEffort: z.string(),
-  }).default(undefined as unknown as Required<ModelRole>),
-  planner: z.object({
-    provider: z.string().required(),
-    model: z.string().required(),
-    reasoningEffort: z.string(),
-  }).default(undefined as unknown as Required<ModelRole>),
-  subagent: z.object({
-    provider: z.string().required(),
-    model: z.string().required(),
-    reasoningEffort: z.string(),
-  }).default(undefined as unknown as Required<ModelRole>),
+  default: roleSettingsValue.default(undefined as unknown as never),
+  planner: roleSettingsValue.default(undefined as unknown as never),
+  subagent: roleSettingsValue.default(undefined as unknown as never),
 })
 
 /** Resolved composition config: every role is optional. */
@@ -255,11 +262,7 @@ export function apply(ctx: Context, config: Config): void {
    * planner routing has already written). No official service mounted leaves
    * the request untouched.
    */
-  const roleTarget = (agent: Agent): ModelRole | undefined => {
-    const role = classify(agent.session.header.origin, planActive(ctx, agent))
-    const settings = source()
-    const configured = settings[role] ?? composition[role]
-    if (configured !== undefined) return configured
+  const officialRoute = (): ModelRole | undefined => {
     const official = ctx.get('agentDefaultModel')?.currentSelection()
     if (official === undefined) return undefined
     return {
@@ -269,6 +272,16 @@ export function apply(ctx: Context, config: Config): void {
         ? {}
         : { reasoningEffort: String(official.reasoningEffort) },
     }
+  }
+
+  const roleTarget = (agent: Agent): ModelRole | undefined => {
+    const role = classify(agent.session.header.origin, planActive(ctx, agent))
+    const fromSettings = source()[role]
+    // The explicit follow-official marker wins over the composition layer.
+    if (fromSettings === FOLLOW_OFFICIAL) return officialRoute()
+    const configured = fromSettings ?? composition[role]
+    if (configured !== undefined) return configured
+    return officialRoute()
   }
 
   ctx.on('agent/request', async ({ agent }, next) => {

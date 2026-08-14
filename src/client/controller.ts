@@ -74,11 +74,14 @@ interface ScopePair {
   role: SettingsScope<RoleRouterSettingsSection>
 }
 
+/** The settings sentinel written when a role is explicitly unset (mirrors the host half). */
+const FOLLOW_OFFICIAL = 'follow-official'
+
 /** The role-router settings section shape (mirrors the host half). */
 interface RoleRouterSettingsSection {
-  default?: ModelRole
-  planner?: ModelRole
-  subagent?: ModelRole
+  default?: ModelRole | typeof FOLLOW_OFFICIAL
+  planner?: ModelRole | typeof FOLLOW_OFFICIAL
+  subagent?: ModelRole | typeof FOLLOW_OFFICIAL
 }
 
 /** Deep-compare two role routes (reference-equal when both undefined). */
@@ -89,9 +92,10 @@ function sameRoute(a: ModelRole | undefined, b: ModelRole | undefined): boolean 
     && (a.reasoningEffort ?? undefined) === (b.reasoningEffort ?? undefined)
 }
 
-/** Extract one role route from a scope snapshot. */
+/** Extract one role route from a scope snapshot; the follow-official marker reads as unset. */
 function roleValue(scope: SettingsScope<RoleRouterSettingsSection>, role: 'default' | 'planner' | 'subagent'): ModelRole | undefined {
-  return scope.getSnapshot().value?.[role]
+  const value = scope.getSnapshot().value?.[role]
+  return value === FOLLOW_OFFICIAL ? undefined : value
 }
 
 /** Whether the user layer overrides one role object. */
@@ -186,9 +190,10 @@ export class RoleRouterCardController {
         const staged = this.staged.get(role)
         if (staged === undefined) continue
         if (staged === UNSET_ROLE) {
-          if (roleValue(this.scopes.role, role) !== undefined) {
-            writes.push(this.scopes.role.unset(role))
-          }
+          // A missing settings key would fall back to the composition layer;
+          // write the explicit marker so the role follows the official
+          // selector even when composition configures it.
+          writes.push(this.scopes.role.set(role, FOLLOW_OFFICIAL))
           this.staged.delete(role)
           continue
         }

@@ -17,8 +17,11 @@ import css from './ModelSummarySeat.module.css'
 export interface ModelSummarySeatInjected {
   /** The session's shared model directory (official). */
   directory: SnapshotStore<ModelDirectoryState>
-  /** Current role-router settings (default + planner routes), re-read per render. */
-  role: () => { default?: ModelRole; planner?: ModelRole } | undefined
+  /**
+   * Current role-router settings (default + planner routes), re-read per
+   * render; the follow-official marker reads as unset.
+   */
+  role: () => { default?: ModelRole | 'follow-official'; planner?: ModelRole } | undefined
 }
 
 /** Display name of one route from the directory groups, fallback model id. */
@@ -49,7 +52,7 @@ export function ModelSummarySeat(props: ModelSummarySeatProps) {
   const planner = role?.planner
   // The default shown is the configured default route when set, else the
   // official session selection (which the unset default role follows).
-  const configuredDefault = role?.default
+  const configuredDefault = role?.default === 'follow-official' ? undefined : role?.default
   const defaultRoute = configuredDefault ?? (current === null
     ? undefined
     : { provider: current.provider, model: current.model })
