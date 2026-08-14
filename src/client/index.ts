@@ -94,13 +94,13 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => () => card.dispose(), 'role-router: settings card')
 
   // The composer-adjacent summary: session default + planner route. Lives in
-  // the input dock (its own row above the composer card) so the summary
-  // right-aligns without squeezing the tool row's plan chip, model seat, or
-  // the approval panel that takes over the composer.
+  // the input dock above the todo card (negative order beats the plan strip's
+  // order 0), centered on its own row so it never squeezes the tool row's
+  // plan chip, model seat, or the approval panel that takes over the composer.
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
     name: 'conversation.input.dock',
     id: 'role-router-models',
-    order: 200,
+    order: -10,
     locale: NS,
     inject: (sessionId) => {
       const directory = ctx.modelDirectories.directoryFor(sessionId)
