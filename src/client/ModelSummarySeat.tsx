@@ -20,7 +20,7 @@ export interface ModelSummarySeatInjected {
    * Current role-router settings (default + planner routes), re-read per
    * render; the follow-official marker reads as unset.
    */
-  role: () => { default?: ModelRole | 'follow-official'; planner?: ModelRole } | undefined
+  role: () => { default?: ModelRole | 'follow-official'; planner?: ModelRole | 'follow-official' } | undefined
 }
 
 /** Display name of one route from the directory groups, fallback model id. */
@@ -48,10 +48,11 @@ export function ModelSummarySeat(props: ModelSummarySeatProps) {
   )
   const role = props.role()
   const current = directory.current
-  const planner = role?.planner
+  // The follow-official marker reads as unset for both roles shown.
+  const configuredDefault = role?.default === 'follow-official' ? undefined : role?.default
+  const planner = role?.planner === 'follow-official' ? undefined : role?.planner
   // The default shown is the configured default route when set, else the
   // official session selection (which the unset default role follows).
-  const configuredDefault = role?.default === 'follow-official' ? undefined : role?.default
   const defaultRoute = configuredDefault ?? (current === null
     ? undefined
     : { provider: current.provider, model: current.model })

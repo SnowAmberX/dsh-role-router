@@ -77,10 +77,13 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
     return () => { document.removeEventListener('mousedown', closeOutside) }
   }, [open])
 
-  // Refresh the catalog on every open (loads on first open too).
+  // Refresh the catalog on every open (loads on first open too). The load
+  // face is a stable closure from the controller's inject(), so it is a safe
+  // dependency; the whole props object must NOT be — it changes every parent
+  // render and would re-trigger loads on every directory state flip.
   useEffect(() => {
     if (open) props.load()
-  }, [open, props])
+  }, [open, props.load])
 
   const close = (): void => setOpen(false)
   const triggerLabel = value === undefined
@@ -180,7 +183,9 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
             </div>
           )}
           {directory.status === 'ready' && directory.groups.length === 0 && (
-            <div className={css.status}>{t('directory.empty')}</div>
+            <div className={css.status}>
+              {directory.noSession ? t('directory.noSession') : t('directory.empty')}
+            </div>
           )}
           {directory.failures.map(failure => (
             <div className={css.warning} key={failure.id}>

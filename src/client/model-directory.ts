@@ -22,11 +22,13 @@ export interface RoleRouterDirectoryState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   /** Whole-request failure text; null when none. */
   error: string | null
+  /** Whether no session is open yet (the directory anchors on a session RPC). */
+  noSession: boolean
 }
 
 /** Fresh directory state. */
 function initialDirectory(): RoleRouterDirectoryState {
-  return { groups: [], failures: [], status: 'idle', error: null }
+  return { groups: [], failures: [], status: 'idle', error: null, noSession: false }
 }
 
 /** Resolve a model's display name from the loaded groups, falling back to its id. */
@@ -60,14 +62,25 @@ export class RoleRouterDirectory {
 
   /** Refresh the advisory directory; failure preserves the last good groups. */
   async load(): Promise<void> {
+    if (this.disposed) return
     const sessionId = this.sessionId()
     if (sessionId === undefined) {
-      this.store.update((s) => { s.status = 'ready'; s.error = null })
+      this.store.update((s) => { s.status = 'ready'; s.error = null; s.noSession = true })
       return
     }
     const generation = ++this.generation
-    this.store.update((s) => { s.status = 'loading'; s.error = null })
-    const { result } = await this.sessions.models({ sessionId })
+    this.store.update((s) => { s.status = 'loading'; s.error = null; s.noSession = false })
+    let result
+    try {
+      result = (await this.sessions.models({ sessionId })).result
+    } catch (error) {
+      if (this.disposed || generation !== this.generation) return
+      this.store.update((s) => {
+        s.status = 'error'
+        s.error = String(error)
+      })
+      return
+    }
     if (this.disposed || generation !== this.generation) return
     if (!result.ok) {
       this.store.update((s) => {
@@ -81,6 +94,7 @@ export class RoleRouterDirectory {
       s.failures = result.value.failures
       s.status = 'ready'
       s.error = null
+      s.noSession = false
     })
   }
 
