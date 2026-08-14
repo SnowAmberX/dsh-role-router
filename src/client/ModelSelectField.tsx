@@ -167,7 +167,10 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
             </span>
             <span className={css.check} aria-hidden>{value === undefined ? '✓' : ''}</span>
           </button>
-          {directory.status === 'loading' && (
+          {/* Loading hint only while nothing is cached yet: with a previous
+              load in hand the list shows immediately and refreshes silently
+              in the background (avoids flashing "loading" over stale data). */}
+          {directory.status === 'loading' && directory.groups.length === 0 && (
             <div className={css.status} role="status">{t('directory.loading')}</div>
           )}
           {directory.status === 'error' && (
