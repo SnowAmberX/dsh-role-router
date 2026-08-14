@@ -41,8 +41,10 @@ An unset role passes the request through untouched: the harness's official
 per-session model-selection layer decides, with its usual precedence —
 explicit in-session switches (composer / `/model`) > the session's own latest
 logged request > the global default (agent-default-model settings). So
-in-session model switches take effect immediately for unset roles, and the
-composer summary always agrees with the actual requests.
+in-session model switches take effect for unset roles on the next turn (the
+official layer snapshots the selection at prompt assembly, so a mid-turn
+switch never splits the running turn), and the composer summary always
+agrees with the actual requests.
 
 Switching models drops an inherited adapter-owned `reasoningEffort` unless
 the role configures an explicit one (the routed model may not support the
