@@ -1,6 +1,6 @@
 {
   "name": "@snowamberx/dsh-role-router",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Route DeepSeek Harness agent requests by role: planner model in plan mode, default model otherwise, subagent model for subagents.",
   "type": "module",
   "main": "lib/index.js",
