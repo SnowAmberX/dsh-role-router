@@ -12,9 +12,10 @@ back to the default model — no manual intervention needed.
   default). `planner` is triggered automatically by plan mode (`/plan` and
   friends); `default` always tracks the official session model selection.
 - **Web UI**: a "Multi-role model routing" card on the settings page with
-  three model pickers (same source as `/model` — the host's live,
-  provider-grouped catalog, auto-refreshed), plus a composer-adjacent pill
-  that shows the current selection at a glance.
+  three model pickers (each with an optional reasoning-effort picker; same
+  source as `/model` — the host's live, provider-grouped catalog,
+  auto-refreshed), plus a composer-adjacent pill that shows the current
+  selection at a glance.
 - **Two configuration layers**: cordis.yml (composition) and the
   `role-router` settings namespace (user layer, which takes precedence);
   saved settings apply to the next request without a restart.
@@ -32,14 +33,16 @@ root context, so they observe top-level agents and every in-process subagent:
 
 | Role | Requests | Model source |
 |---|---|---|
-| `default` | top-level agents outside plan mode | **The official session model selection** (composer model seat / `/model` / agent-default-model settings). Requests pass through untouched — whatever the official picker selects IS the default role |
-| `planner` | top-level agents while plan mode is active | This plugin's configuration (`role-router` settings namespace, or the `planner` composition entry); unset passes through (follows the session default) |
-| `subagent` | every in-process subagent request (any depth) | This plugin's configuration (`subagent` entry); unset passes through |
+| `default` | top-level agents outside plan mode | Configured → **forced** to that model; unset → follows the official selector (composer / `/model` / agent-default-model) |
+| `planner` | top-level agents while plan mode is active | Configured → **forced** to that model; unset → follows the official selector |
+| `subagent` | every in-process subagent request (any depth) | Configured → **forced** to that model; unset → follows the official selector |
 
-Switching models drops an inherited adapter-owned `reasoningEffort` (the
-routed model may not support the previous model's effort; `prepareCall`
-rejects unsupported explicit efforts). The `default` role never switches, so
-its effort is preserved.
+Switching models drops an inherited adapter-owned `reasoningEffort` unless
+the role configures an explicit one (the routed model may not support the
+previous model's effort; `prepareCall` rejects unsupported explicit efforts);
+an explicit effort is applied and validated by `prepareCall`. The `default`
+role never rewrites the request, so its effort always comes from the official
+session selection (settable through the default field's effort picker).
 
 Plan mode is folded from the durable `plan/mode` session events
 (`foldPlanMode`); `ctx.planMode` is consulted first when visible
@@ -56,10 +59,13 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
 1. **Settings → plugin configuration → "Multi-role model routing" card**: three
    model pickers (default / planner / subagent) fed by the host's live model
    catalog (provider-grouped, same source as `/model`, refreshed on
-   `llm/adapters-updated`).
+   `llm/adapters-updated`); after picking a model each field offers an optional
+   **reasoning-effort** picker whose levels come from that model's
+   `reasoning.efforts` in the catalog (adapter-declared, not hard-coded).
    - The `default` field edits the official `agent-default-model` settings
-     section directly (field-level writes; `reasoningEffort` untouched) — the
-     configured default IS the new-session default selection.
+     section directly (field-level writes; without an explicit effort the
+     official one is preserved, with one it is written) — the configured
+     default IS the new-session default selection.
    - `planner` / `subagent` write the `role-router` settings namespace; a
      saved setting applies to the next request without a restart.
 2. **Composer-adjacent summary**: a pill showing
@@ -74,25 +80,29 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
 - id: model-router
   name: '@SnowAmberX/dsh-role-router'
   config:
-    default:        # required; only a fallback when no settings service is mounted
+    default:        # optional; unset follows the official selector
       provider: deepseek-official
       model: deepseek-v4-flash
+      reasoningEffort: high   # optional; unset follows the target model default
     planner:        # optional
       provider: deepseek-official
       model: deepseek-v4-pro
+      reasoningEffort: max    # optional
     subagent:       # optional
       provider: deepseek-official
       model: deepseek-v4-flash
 ```
 
-Unknown keys and blank provider/model values fail loud at load. `default` is
-required for schema compatibility, but the live `default` role comes from the
-official agent-default-model selection.
+Unknown keys and blank provider/model/reasoningEffort values fail loud at
+load. `default` is required for schema compatibility, but the live `default`
+role comes from the official agent-default-model selection (into which the
+plugin can write the default field's explicit effort).
 
 ### settings (user layer)
 
-`role-router` namespace: `{ planner?: { provider, model }, subagent?: { provider, model } }`.
-Settings-document values win over the composition layer.
+`role-router` namespace: `{ default?, planner?, subagent? }`, each role being
+`{ provider, model, reasoningEffort? }`. Settings-document values win over the
+composition layer.
 
 ## Install
 

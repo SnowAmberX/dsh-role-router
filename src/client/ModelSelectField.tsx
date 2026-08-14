@@ -2,11 +2,13 @@
  * ModelSelectField: the settings card's model picker. A button trigger shows
  * the current value (display name resolved from the catalog, fallback id);
  * the menu lists the provider-grouped catalog with inline load/retry states.
- * Deliberately simpler than the official composer ModelSelect: no reasoning
- * effort tier, no per-session selection — this field stages a role route.
+ * Simpler than the official composer ModelSelect (no per-session selection):
+ * this field stages a role route, plus an optional reasoning-effort picker
+ * fed by the selected model's catalog metadata.
  */
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type FocusEvent } from 'react'
+import type { ModelReasoningEffort } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ModelRole } from '../index.ts'
 import type { RoleRouterDirectoryState } from './model-directory.ts'
 import { displayModelName } from './model-directory.ts'
@@ -39,16 +41,30 @@ export interface ModelSelectFieldProps {
   id: string
 }
 
+/** The selected model's selectable reasoning efforts, or undefined when absent. */
+function effortsOf(
+  directory: RoleRouterDirectoryState,
+  route: ModelRole | undefined,
+): ModelReasoningEffort[] | undefined {
+  if (route === undefined) return undefined
+  const group = directory.groups.find(candidate => candidate.id === route.provider)
+  const model = group?.models.find(candidate => candidate.id === route.model)
+  const efforts = model?.reasoning?.efforts
+  return efforts === undefined || efforts.length === 0 ? undefined : efforts
+}
+
 /**
  * Render one role's model picker.
  * @param props - the field's copy, value, catalog, and actions.
  */
 export function ModelSelectField(props: ModelSelectFieldProps) {
   const { t, directory, disabled } = props
+  const value = props.value
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const id = useId()
   const menuId = `${id}-menu`
+  const effortId = `${id}-effort`
 
   useEffect(() => {
     if (!open) return
@@ -65,9 +81,10 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
   }, [open, props])
 
   const close = (): void => setOpen(false)
-  const triggerLabel = props.value === undefined
+  const triggerLabel = value === undefined
     ? t('field.empty')
-    : displayModelName(directory, props.value.provider, props.value.model)
+    : displayModelName(directory, value.provider, value.model)
+  const efforts = effortsOf(directory, value)
 
   const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape' && open) {
@@ -98,6 +115,30 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
         <span className={css.chevron} aria-hidden>{open ? '▴' : '▾'}</span>
       </button>
       {props.hint !== undefined && <div className={css.hint}>{props.hint}</div>}
+      {efforts !== undefined && value !== undefined && (
+        <div className={css.effort}>
+          <label className={css.effortLabel} htmlFor={effortId}>{t('field.effort.label')}</label>
+          <select
+            id={effortId}
+            className={css.effortSelect}
+            disabled={disabled}
+            value={value.reasoningEffort ?? ''}
+            onChange={(event) => {
+              const selected = event.target.value
+              props.onSelect({
+                provider: value.provider,
+                model: value.model,
+                ...(selected === '' ? {} : { reasoningEffort: selected }),
+              })
+            }}
+          >
+            <option value="">{t('field.effort.unset')}</option>
+            {efforts.map(effort => (
+              <option key={effort.id} value={effort.id}>{effort.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       {props.overridden && !props.disabled && (
         <button type="button" className={css.reset} onClick={props.onReset}>
           {t('card.reset')}

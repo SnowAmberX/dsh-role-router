@@ -47,6 +47,35 @@
   cursor: pointer;
 }
 
+.effort {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.effortLabel {
+  font-size: 0.8em;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.effortSelect {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--dsh-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.effortSelect:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .menu {
   position: absolute;
   z-index: 40;

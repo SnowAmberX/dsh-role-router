@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime, { createUserMessage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { createUserMessage, ReasoningEffortId, type LlmModelReasoningInfo } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { installModelSelection, type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
+import AgentDefaultModelConfig from '@deepseek-ai/dsh-agent-default-model'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import * as modelRouter from '../src/index.ts'
 import type { Config } from '../src/index.ts'
@@ -26,7 +27,11 @@ interface Harness {
 /** Mount a real agent loop with the router (and optionally plan-mode). */
 async function harness(
   config: Config,
-  options: { withPlanMode?: boolean } = {},
+  options: {
+    withPlanMode?: boolean
+    reasoning?: LlmModelReasoningInfo
+    official?: { provider: string; model: string; reasoningEffort?: string }
+  } = {},
 ): Promise<Harness> {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
@@ -38,8 +43,11 @@ async function harness(
   if (options.withPlanMode !== false) {
     await ctx.plugin(PlanModeController, { section: PLAN_SECTION })
   }
+  if (options.official !== undefined) {
+    await ctx.plugin(AgentDefaultModelConfig, options.official)
+  }
   await ctx.plugin(modelRouter, config)
-  const adapter = new MockAdapter([])
+  const adapter = new MockAdapter([], options.reasoning)
   // Serve both the harness route and the role routes under one scripted adapter.
   ctx.llm.registerAdapter(['mock', 'deepseek-official'], adapter)
   const agent = ctx.agentLoop.create(SessionId('router-main'), { provider: 'mock', model: 'mock' })
@@ -76,13 +84,12 @@ function lastRequestConfig(agent: Agent): { provider: string; model: string } {
 }
 
 describe('model-router through the agent loop', () => {
-  it('passes default-mode requests through (the official selection is the default role)', async () => {
+  it('forces the configured default role in default mode', async () => {
     const { ctx, agent, adapter } = await harness({ default: DEFAULT })
     adapter.script.push(textResponse('hello'))
-    // The agent's own route is the official session selection in this harness.
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    expect(lastRequestConfig(agent)).toEqual({ provider: 'mock', model: 'mock' })
+    expect(lastRequestConfig(agent)).toEqual(DEFAULT)
   })
 
   it('switches to the planner role when plan mode activates and back when it ends', async () => {
@@ -90,7 +97,7 @@ describe('model-router through the agent loop', () => {
     adapter.script.push(textResponse('first, default'), textResponse('now plan'), textResponse('now implement'))
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'one' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    expect(lastRequestConfig(agent)).toEqual({ provider: 'mock', model: 'mock' })
+    expect(lastRequestConfig(agent)).toEqual(DEFAULT)
 
     ctx.planMode.set(agent, true)
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'two' }], source: { kind: 'user' } }))
@@ -98,11 +105,11 @@ describe('model-router through the agent loop', () => {
     expect(lastRequestConfig(agent)).toEqual(PLANNER)
 
     // The exit-approval flip: plan mode ends, the next request implements
-    // under the official session selection (pass-through).
+    // under the configured default role again.
     ctx.planMode.set(agent, false)
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'three' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    expect(lastRequestConfig(agent)).toEqual({ provider: 'mock', model: 'mock' })
+    expect(lastRequestConfig(agent)).toEqual(DEFAULT)
   })
 
   it('routes by the session log fold when no plan-mode service is composed', async () => {
@@ -160,5 +167,41 @@ describe('model-router through the agent loop', () => {
     await waitForIdle(ctx, agent)
     const header = findEvent(agent.session.events, 'request/header')
     expect(header.data.header.system).toContain(`You are powered by ${PLANNER.model} via ${PLANNER.provider}.`)
+  })
+
+  it('follows the official selection when the default role is unconfigured', async () => {
+    const official = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
+    const { ctx, agent, adapter } = await harness({ planner: PLANNER }, { official })
+    adapter.script.push(textResponse('follow official'))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
+    await waitForIdle(ctx, agent)
+    expect(lastRequestConfig(agent)).toEqual({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+  })
+
+  it('forces the configured default role even when the official selection differs', async () => {
+    const { ctx, agent, adapter } = await harness(
+      { default: DEFAULT },
+      { official: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } },
+    )
+    adapter.script.push(textResponse('forced default'))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' } }))
+    await waitForIdle(ctx, agent)
+    expect(lastRequestConfig(agent)).toEqual(DEFAULT)
+  })
+
+  it('applies a configured reasoning effort to the routed planner request', async () => {
+    const { ctx, agent, adapter } = await harness(
+      { default: DEFAULT, planner: { ...PLANNER, reasoningEffort: 'high' } },
+      { reasoning: { efforts: [{ id: ReasoningEffortId('high'), name: 'High' }] } },
+    )
+    adapter.script.push(textResponse('plan with high effort'))
+    ctx.planMode.set(agent, true)
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'plan' }], source: { kind: 'user' } }))
+    await waitForIdle(ctx, agent)
+    expect(adapter.requests.at(-1)).toMatchObject({
+      provider: PLANNER.provider,
+      model: PLANNER.model,
+      reasoningEffort: 'high',
+    })
   })
 })

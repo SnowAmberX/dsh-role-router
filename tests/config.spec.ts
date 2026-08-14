@@ -25,15 +25,35 @@ describe('resolveConfig', () => {
     expect(resolved.subagent).toBeUndefined()
   })
 
-  it('rejects a missing default role', () => {
-    expect(() => resolveConfig({} as never)).toThrow(/default role/)
-    expect(() => resolveConfig({ planner: PLANNER } as never)).toThrow(/default role/)
+  it('allows an unset default role (requests follow the official selection)', () => {
+    const resolved = resolveConfig({} as never)
+    expect(resolved.default).toBeUndefined()
+    expect(resolved.planner).toBeUndefined()
+    expect(resolved.subagent).toBeUndefined()
+    expect(resolveConfig({ planner: PLANNER } as never).default).toBeUndefined()
   })
 
   it('rejects blank provider or model strings', () => {
     expect(() => resolveConfig({ default: { provider: ' ', model: 'm' } })).toThrow(/non-empty provider/)
     expect(() => resolveConfig({ default: { provider: 'p', model: '' } })).toThrow(/non-empty model/)
     expect(() => resolveConfig({ default: ROUTE, planner: { provider: 'p', model: '\t' } })).toThrow(/planner role needs a non-empty model/)
+  })
+
+  it('accepts and passes through an optional reasoningEffort', () => {
+    const resolved = resolveConfig({
+      default: { ...ROUTE, reasoningEffort: 'high' },
+      planner: { ...PLANNER, reasoningEffort: 'max' },
+    })
+    expect(resolved.default).toEqual({ ...ROUTE, reasoningEffort: 'high' })
+    expect(resolved.planner).toEqual({ ...PLANNER, reasoningEffort: 'max' })
+    expect(resolved.subagent).toBeUndefined()
+  })
+
+  it('rejects a blank reasoningEffort', () => {
+    expect(() => resolveConfig({ default: { provider: 'p', model: 'm', reasoningEffort: ' ' } }))
+      .toThrow(/non-empty reasoningEffort/)
+    expect(() => resolveConfig({ default: ROUTE, planner: { provider: 'p', model: 'm', reasoningEffort: '' } }))
+      .toThrow(/planner role needs a non-empty reasoningEffort/)
   })
 
   it('rejects unknown config keys at load', () => {

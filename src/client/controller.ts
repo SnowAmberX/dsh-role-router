@@ -1,9 +1,9 @@
 /**
- * Settings-card controller: staged form over TWO settings namespaces — the
- * official `agent-default-model` section for the default-model fields and the
- * `role-router` section for the planner/subagent roles. Writes are
- * field-level (`SettingsScope.set`), so the default model's reasoningEffort
- * survives untouched and the role objects are replaced as whole fields.
+ * Settings-card controller: a staged form over the `role-router` settings
+ * namespace (default / planner / subagent fields). The host half mirrors the
+ * `default` field into the official `agent-default-model` section (preserving
+ * its effort unless the route sets one explicitly). Writes are field-level
+ * (`SettingsScope.set`) and role objects are replaced as whole fields.
  */
 
 import type { SettingsScope, SettingsScopeSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
@@ -76,7 +76,9 @@ interface RoleRouterSettingsSection {
 /** Deep-compare two role routes (reference-equal when both undefined). */
 function sameRoute(a: ModelRole | undefined, b: ModelRole | undefined): boolean {
   if (a === undefined || b === undefined) return a === b
-  return a.provider === b.provider && a.model === b.model
+  return a.provider === b.provider
+    && a.model === b.model
+    && (a.reasoningEffort ?? undefined) === (b.reasoningEffort ?? undefined)
 }
 
 /** Extract one role route from a scope snapshot. */
