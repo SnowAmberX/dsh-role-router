@@ -1,8 +1,29 @@
 English | [中文](README.md)
 
-# @SnowAmberX/dsh-role-router
+# Role Router Plugin (dsh-role-router)
 
-Role-based model routing for DeepSeek Harness: switch the model per agent role.
+Tired of manually switching models between planning and execution?
+`dsh-role-router` does it for you: type `/plan` and requests are routed
+automatically to the configured planner model; leaving plan mode switches
+back to the default model — no manual intervention needed.
+
+- **Role routing**: `default`, `planner` and `subagent` are configured
+  independently; unconfigured roles pass through (follow the session
+  default). `planner` is triggered automatically by plan mode (`/plan` and
+  friends); `default` always tracks the official session model selection.
+- **Web UI**: a "Multi-role model routing" card on the settings page with
+  three model pickers (same source as `/model` — the host's live,
+  provider-grouped catalog, auto-refreshed), plus a composer-adjacent pill
+  that shows the current selection at a glance.
+- **Two configuration layers**: cordis.yml (composition) and the
+  `role-router` settings namespace (user layer, which takes precedence);
+  saved settings apply to the next request without a restart.
+
+## Screenshots
+
+![Main UI with the composer model summary](img/main.png)
+
+![Multi-role model routing card on the settings page](img/setting.png)
 
 ## Routing semantics
 

@@ -1,8 +1,18 @@
 中文 | [English](README.en.md)
 
-# @SnowAmberX/dsh-role-router
+# 多角色模型路由插件（dsh-role-router）
 
-DeepSeek Harness 多角色模型路由插件：按 agent 角色自动切换模型。
+还在为计划与执行阶段手动切换模型而烦恼？`dsh-role-router` 替你自动完成：输入 `/plan` 进入计划模式，请求即自动路由到配置的 planner 模型；退出计划模式自动切回默认模型——全程无需手动干预。
+
+- **角色路由**：`default` / `planner` / `subagent` 三种角色独立配置，未配置的角色放行（跟随会话默认）；`planner` 由计划模式（`/plan` 等）自动触发，`default` 始终跟随官方会话级模型选择。
+- **Web UI**：设置页「多角色模型路由」卡片提供三个模型下拉框，选项与 `/model` 同源（host 实时模型目录，provider 分组，自动刷新）；composer 旁附模型摘要胶囊，当前选择一目了然。
+- **两级配置**：支持 cordis.yml（composition 层）与 `role-router` settings 命名空间（用户层，后者优先）；保存即生效，无需重启。
+
+## 预览
+
+![主界面与 composer 模型摘要](img/main.png)
+
+![设置页中的多角色模型路由卡片](img/setting.png)
 
 ## 路由语义
 
