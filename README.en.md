@@ -82,13 +82,30 @@ The package declares `dsh.client` (platform: web) and provides two surfaces:
 
 ## Configuration
 
-### cordis.yml (composition layer)
+On install, the bundle inserts the `model-router` row with no config — **all
+three roles start unset**: requests pass through and the official layered
+selection applies. Two ways to personalize, settings first:
+
+### Settings page (user layer, recommended)
+
+Settings → plugin configuration → "Multi-role model routing" card: saving
+writes the `role-router` namespace into `settings.yaml`
+(`{ default?, planner?, subagent? }`, each role being
+`{ provider, model, reasoningEffort? }`), applying to the next request
+without a restart. The settings page **does not write** cordis.patch.yml,
+and its values win over the composition layer.
+
+### cordis.patch.yml (composition layer, optional)
+
+The bundle already inserts the plugin row under the id `model-router`; the
+user layer only needs to **override its config by id**. In a profile, write
+the profile's `cordis.patch.yml`:
 
 ```yaml
 - id: model-router
   name: '@snowamberx/dsh-role-router'
   config:
-    default:        # optional; unset follows the official selector
+    default:        # optional; omit the key to keep it unset (pass-through)
       provider: deepseek-official
       model: deepseek-v4-flash
       reasoningEffort: high   # optional; unset follows the target model default
@@ -120,6 +137,32 @@ dsh plugin --profile web add link:/path/to/this/repo
 ```
 
 Restart `dsh web` (client-modules rescans package metadata at boot).
+
+## A standard DSH community plugin package
+
+This package is a **standard DSH community bundle**: its manifest declares a
+`dsh.bundle` configuration layer plus a `dsh.client` web half, matching the
+official [packaging & installation
+guide](https://github.com/deepseek-ai/deepseek-harness/blob/main/docs/user/develop/basic/publish.md)
+and the conventions of the `packages/client/*` client plugin packages.
+
+- **`dsh.bundle` manifest**: `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`
+  in `package.json`. `cordis.patch.yml` is a patch layer inserting the plugin
+  row by id (`model-router`), resolved by package name
+  (`@snowamberx/dsh-role-router`); `dsh plugin add` recognizes the declaration
+  and appends the package to the profile's `dsh.profile.bundles` layer stack
+  (a package without `dsh.bundle` installs as a plain dependency and warns).
+- **Web client half**: `"dsh": { "client": { "platform": "web", "inject": [...] } }`
+  declares the browser half, and `exports["./client"]` points at
+  `lib/client.js` — a standard closure-factory artifact
+  (`window.__ModuleLoader__.load({ id, factory })`) served by client-modules at
+  `/plugins/@snowamberx/dsh-role-router/client.js`. `inject` lists the client
+  half's dependency edges (informational: preflight display and HMR diffing;
+  activation order is driven by cordis service injection).
+- **Build**: `tsc` (node half + type declarations) plus `tsdown`
+  (`vendor/tsdown.client.ts`, the same clientBundle preset as the official
+  `packages/client/tsdown.client.ts`: inlined CSS Modules, platform modules as
+  externals, sourcemaps mapped back to repository source paths).
 
 ## Development
 

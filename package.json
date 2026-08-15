@@ -28,15 +28,21 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-agent": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-api-remotes": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-connection": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-locale": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-runtime": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-conversation": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-model-selection": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-slots": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-llm": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-plan-mode": "^0.0.1-rc.1",
-    "@deepseek-ai/schemastery": "^3.18.1",
     "@deepseek-ai/dsh-settings": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-system-prompt": "^0.0.1-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1",
     "react": "^18.2.0"
   },
   "devDependencies": {
@@ -57,9 +63,13 @@
     },
     "client": {
       "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-client-locale"
+        "@deepseek-ai/dsh-client-ui-model-selection",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-slots"
       ],
       "platform": "web"
     }

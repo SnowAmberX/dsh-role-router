@@ -48,7 +48,7 @@
 - id: model-router
   name: '@snowamberx/dsh-role-router'
   config:
-    default:        # 可选；未配置时跟随官方选择器
+    default:        # 可选；不写键则保持未配置（透传）
       provider: deepseek-official
       model: deepseek-v4-flash
       reasoningEffort: high   # 可选；未配置时遵循目标模型默认
@@ -76,6 +76,14 @@ dsh plugin --profile web add link:/path/to/this/repo
 ```
 
 重启 `dsh web` 后生效（client-modules 的包元数据在重启时重新扫描）。
+
+## 标准 DSH 社区插件包
+
+本包是一个**标准 DSH 社区插件包（bundle）**：manifest 声明 `dsh.bundle` 配置层 + `dsh.client` web 半区，与官方 [打包与安装插件](https://github.com/deepseek-ai/deepseek-harness/blob/main/docs/user/develop/basic/publish.zh.md) 文档及 `packages/client/*` 各 client 插件包的约定一致。
+
+- **`dsh.bundle` manifest**：`package.json` 中 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`。`cordis.patch.yml` 是按行 id（`model-router`）插入插件行的 patch 层，插件按包名（`@snowamberx/dsh-role-router`）解析；`dsh plugin add` 识别该声明后会把包追加进 profile 的 `dsh.profile.bundles` 层栈（无 `dsh.bundle` 声明的包只会作为普通依赖安装并收到警告）。
+- **web client 半区**：`"dsh": { "client": { "platform": "web", "inject": [...] } }` 声明浏览器半区；`exports["./client"]` 指向 `lib/client.js`，构建产物是标准闭包工厂（`window.__ModuleLoader__.load({ id, factory })`），由 client-modules 在 `/plugins/@snowamberx/dsh-role-router/client.js` 提供。`inject` 列出 client 半区依赖的包（信息性标注：preflight 展示与 HMR diffing；激活顺序由 cordis 服务注入决定）。
+- **构建**：`tsc`（node 半区 + 类型声明）+ `tsdown`（`vendor/tsdown.client.ts`，与官方 `packages/client/tsdown.client.ts` 一致的 clientBundle 预设：CSS Modules 内联注入、平台模块走 externals、sourcemap 指向仓库源码路径）。
 
 ## 开发
 

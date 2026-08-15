@@ -58,6 +58,18 @@ dsh plugin --profile web add @snowamberx/dsh-role-router
 
 Restart `dsh web` for the change to take effect.
 
+## A standard DSH community plugin package
+
+This package is a standard DSH community bundle: `package.json` declares the
+`dsh.bundle` manifest (`"patch": "./cordis.patch.yml"` — the configuration
+layer `dsh plugin add` recognizes and stacks into `dsh.profile.bundles`) and
+a `dsh.client` web half (`platform: "web"` + `inject` dependency edges), with
+`exports["./client"]` shipping the browser bundle at `lib/client.js` (a
+standard `window.__ModuleLoader__.load({ id, factory })` closure-factory
+artifact served by client-modules under `/plugins/`). The build runs `tsc`
+(node half + types) and `tsdown` with the same clientBundle preset the
+official `packages/client/*` packages use.
+
 ## Configuration
 
 ### cordis.yml (composition layer)
@@ -66,7 +78,7 @@ Restart `dsh web` for the change to take effect.
 - id: model-router
   name: '@snowamberx/dsh-role-router'
   config:
-    default:        # optional; unset follows the official selector
+    default:        # optional; omit the key to keep it unset (pass-through)
       provider: deepseek-official
       model: deepseek-v4-flash
     planner:        # optional
