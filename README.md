@@ -2,6 +2,8 @@
 
 # 多角色模型路由插件（dsh-role-router）
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 还在为计划与执行阶段手动切换模型而烦恼？`dsh-role-router` 替你自动完成：输入 `/plan` 进入计划模式，请求即自动路由到配置的 planner 模型；退出计划模式自动切回默认模型——全程无需手动干预。
 
 - **角色路由**：`default` / `planner` / `subagent` 三种角色独立配置——**配置了强制使用该模型，未配置则跟随官方模型选择器**；`planner` 由计划模式（`/plan` 等）自动触发。

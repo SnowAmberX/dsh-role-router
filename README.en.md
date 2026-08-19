@@ -2,6 +2,8 @@ English | [中文](README.md)
 
 # Role Router Plugin (dsh-role-router)
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 Tired of manually switching models between planning and execution?
 `dsh-role-router` does it for you: type `/plan` and requests are routed
 automatically to the configured planner model; leaving plan mode switches
