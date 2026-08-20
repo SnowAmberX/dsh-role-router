@@ -87,12 +87,13 @@ export function apply(ctx: ClientContext): void {
   // and hide the reasoning-effort picker until the menu's first open.
   refresh()
 
-  // The settings card: staged form over both namespaces.
+  // The settings card: staged form over both namespaces. `settings.plugin.item`
+  // is a keyed slot (key = the settings namespace the card edits), so the
+  // registration MUST carry `key` — a missing key fails the whole client apply.
   const card = new RoleRouterCardController({ role: roleScope }, directory)
   ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
     name: 'settings.plugin.item',
-    id: 'role-router',
-    order: 200,
+    key: ROLE_ROUTER_NS,
     locale: NS,
     inject: () => card.inject(),
   }, RoleRouterCard))
