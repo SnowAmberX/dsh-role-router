@@ -29,13 +29,17 @@
  * scalars carry over. Unset roles pass through, preserving whatever the
  * official selection layer assembled (including its effort).
  *
- * Known interplay: a forced planner/subagent route is persisted into the
- * session's request header, and the official "latest logged request" layer
- * then treats it as the session's current model — so after a forced
- * plan-mode round, an unset default role follows the last forced planner
- * model until the user switches back. This mirrors the harness's own
- * per-session precedence and keeps the composer summary in step with the
- * requests (the summary reads the same session-local selection).
+ * Known interplay: a forced planner route is persisted into the session's
+ * request header, and the official "latest logged request" layer would then
+ * treat it as the session's current model. To keep follow-official honest,
+ * the plugin snapshots the official route at the plan-entry edge and, at the
+ * plan-exit edge, restores it once for an unset default role — after which
+ * the request passes through again. The restore is edge-scoped: an
+ * unconfigured planner never snapshots (nothing polluted the header), and a
+ * fixed default role takes precedence over the snapshot. `assemble` reads
+ * the same edge (restoring the persona variables before `agent/request`
+ * restores the config), so the first post-plan turn never pairs a planner
+ * persona with a restored request.
  *
  * Auxiliary model calls (compaction, session-title) do not dispatch through
  * `agent/request` and are intentionally unaffected, as are out-of-process
@@ -265,14 +269,12 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   /**
-   * The effective route for one request: a configured role is forced; an
-   * unset role (and the explicit follow-official marker) returns undefined,
-   * leaving the request untouched so the official per-agent model-selection
-   * layer (composer pick > latest logged request > global default) applies
-   * unchanged — read where it lives, rather than reconstructing it here.
+   * Pure per-role route resolution: a configured role forces its model; an
+   * unset role (and the explicit follow-official marker) is undefined, so the
+   * request passes through untouched. Edge behavior (plan-entry snapshot and
+   * plan-exit restore) lives in the request listener below.
    */
-  const roleTarget = (agent: Agent): ModelRole | undefined => {
-    const role = classify(agent.session.header.origin, planActive(ctx, agent))
+  const routeFor = (role: AgentRole): ModelRole | undefined => {
     const fromSettings = source()[role]
     // The explicit follow-official marker wins over the composition layer and
     // means "leave the request alone".
@@ -280,21 +282,122 @@ export function apply(ctx: Context, config: Config): void {
     return fromSettings ?? composition[role]
   }
 
+  /** One session's plan-edge routing state (process memory only). */
+  interface SessionRoutingState {
+    wasPlanActive: boolean
+    /** Official route captured on the plan-entry edge; restored once on exit. */
+    prePlanRoute?: ModelRole
+  }
+  const sessionRouting = new Map<string, SessionRoutingState>()
+  const sessionKey = (agent: Agent): string => String(agent.session.id)
+
+  /** Capture only the model route, never other request parameters. */
+  const snapshotRoute = (resolved: LlmCallConfig): ModelRole => ({
+    provider: resolved.provider,
+    model: resolved.model,
+    ...resolved.reasoningEffort === undefined
+      ? {}
+      : { reasoningEffort: String(resolved.reasoningEffort) },
+  })
+
+  /** Restore a captured route, dropping an inherited effort like switchRoute. */
+  const restoreRoute = (resolved: LlmCallConfig, snap: ModelRole): LlmCallConfig => {
+    const { reasoningEffort: _inherited, ...rest } = resolved
+    return {
+      ...rest,
+      provider: snap.provider,
+      model: snap.model,
+      ...snap.reasoningEffort === undefined
+        ? {}
+        : { reasoningEffort: ReasoningEffortId(snap.reasoningEffort) },
+    }
+  }
+
   ctx.on('agent/request', async ({ agent }, next) => {
     const resolved = await next()
-    const target = roleTarget(agent)
-    return target === undefined ? resolved : switchRoute(resolved, target)
+    const active = planActive(ctx, agent)
+    const origin = agent.session.header.origin
+
+    // Subagents own a separate session and never take part in plan-edge
+    // routing; their role is a plain configured/pass-through route.
+    if (origin === 'subagent') {
+      const sub = routeFor('subagent')
+      return sub === undefined ? resolved : switchRoute(resolved, sub)
+    }
+
+    const key = sessionKey(agent)
+    const state = sessionRouting.get(key)
+
+    // Plan-entry edge: snapshot the official route only when the planner is
+    // actually configured (an unconfigured planner never pollutes the header,
+    // so restoring would clobber in-plan user picks). The snapshot happens
+    // after next() so it captures the pre-planner official selection.
+    if (active && (state === undefined || !state.wasPlanActive)) {
+      const planner = routeFor('planner')
+      if (planner !== undefined) {
+        sessionRouting.set(key, { wasPlanActive: true, prePlanRoute: snapshotRoute(resolved) })
+        return switchRoute(resolved, planner)
+      }
+      sessionRouting.set(key, { wasPlanActive: true })
+      return resolved
+    }
+
+    // Plan mode continues: keep forcing the planner, never overwrite the snapshot.
+    if (active) {
+      const planner = routeFor('planner')
+      return planner === undefined ? resolved : switchRoute(resolved, planner)
+    }
+
+    // Plan-exit edge: restore the pre-plan official route once for an unset
+    // default, then clean up unconditionally (a fixed default role wins).
+    if (state !== undefined && state.wasPlanActive) {
+      const defaultTarget = routeFor('default')
+      let result: LlmCallConfig
+      if (defaultTarget === undefined && state.prePlanRoute !== undefined) {
+        result = restoreRoute(resolved, state.prePlanRoute)
+      } else if (defaultTarget !== undefined) {
+        result = switchRoute(resolved, defaultTarget)
+      } else {
+        result = resolved
+      }
+      sessionRouting.delete(key)
+      return result
+    }
+
+    // Ordinary default mode: pure pass-through or a fixed default route.
+    const defaultTarget = routeFor('default')
+    return defaultTarget === undefined ? resolved : switchRoute(resolved, defaultTarget)
   })
 
   // Keep the assembled `{{provider}}`/`{{model}}` persona variables in step
-  // with an applied role route, mirroring installModelSelection's
-  // prompt/request coupling (model-selection.ts). Pass-through requests keep
-  // whatever the official selection assembled.
+  // with the request route, mirroring installModelSelection's prompt/request
+  // coupling (model-selection.ts). The plan-exit edge is read-only here (it
+  // runs before agent/request), so the first post-plan turn assembles the
+  // restored variables and then the request restores the config — never a
+  // planner persona paired with a restored request. Pass-through requests
+  // keep whatever the official selection assembled.
   ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
     const assembled = await next()
     const agent = context.agent
     if (agent === undefined) return assembled
-    const target = roleTarget(agent)
+    const active = planActive(ctx, agent)
+    const origin = agent.session.header.origin
+    let target: ModelRole | undefined
+    if (origin === 'subagent') {
+      target = routeFor('subagent')
+    } else if (active) {
+      target = routeFor('planner')
+    } else {
+      const defaultTarget = routeFor('default')
+      if (defaultTarget !== undefined) {
+        target = defaultTarget
+      } else {
+        const state = sessionRouting.get(sessionKey(agent))
+        if (state !== undefined && state.wasPlanActive && state.prePlanRoute !== undefined) {
+          target = state.prePlanRoute
+        }
+      }
+    }
     if (target === undefined) return assembled
     return {
       ...assembled,
