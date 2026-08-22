@@ -44,11 +44,13 @@ session events (`foldPlanMode`); `ctx.planMode` is consulted first when
 visible. Auxiliary model calls (compaction, session-title) and out-of-process
 subagent providers (acp, codex, …) are unaffected.
 
-Known interplay: a forced planner/subagent route is persisted into the
-session's request header, and the official "latest logged request" layer
-treats that as the session's current model — so with a forced planner and an
-unset default, one plan-mode round leaves the session default following the
-last planner model until switched back (the composer summary shows it too).
+Known interplay: a forced planner route is persisted into the session's
+request header, and the official "latest logged request" layer treats that
+as the session's current model. To keep an unset default (follow-official)
+from inheriting the planner model after plan mode ends, the plugin snapshots
+the official route at the plan-entry edge and restores it once at the
+plan-exit edge, then resumes pure pass-through; a fixed default role wins
+over the restore, and an unconfigured planner never snapshots.
 
 ## Installation
 

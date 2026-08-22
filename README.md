@@ -103,4 +103,4 @@ pnpm test           # vitest（host 路由集成测试 + 配置/分类单测）
 - composer 摘要仅显示 `default` + `planner` 两个角色（`subagent` 不在摘要范围）。
 - 设置页无当前会话时，卡片下拉框显示"打开一个会话后可加载模型列表"（目录经当前会话的 `session.models` RPC 获取，groups 本身是全局的）。
 - `planner`/`subagent` 配置的 provider 未注册 adapter 时，请求按 harness 常规路径报 NO_ADAPTER 轮次错误（响亮失败，不静默降级）。
-- 强制路由会写入会话的请求头：官方"会话最近一次请求记录"层会把它当作会话当前模型。因此 `planner`/`subagent` 配置了强制模型、而 `default` 未配置时，一次计划模式请求后会话默认模型会沿用最近的 planner 模型（composer 摘要同步显示，可在输入框随时切回）。这与 harness 自身的每会话选择优先级一致。
+- 强制路由会写入会话的请求头：官方"会话最近一次请求记录"层会把它当作会话当前模型。为避免 `default` 未配置（follow-official）时退出计划模式后沿用 planner 模型，插件在**进入**计划模式时快照当时的官方选择，在**退出**计划模式时恢复一次（`default` 配置了固定模型时优先于恢复），随后回归纯透传。恢复只发生在 Plan→Normal 边沿：planner 未配置时不快照、不恢复，不影响计划期间用户主动切换的选择。

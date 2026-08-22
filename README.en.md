@@ -191,7 +191,9 @@ enables `preserveSymlinks` so type resolution rides the same flat chain.
   request with the normal NO_ADAPTER turn error (loud, no silent fallback).
 - Forced routes are persisted into the session's request header, and the
   official "latest logged request" layer treats that as the session's current
-  model. So with a forced `planner`/`subagent` and an unset `default`, one
-  plan-mode round leaves the session's default following the last planner
-  model (the composer summary shows it too; switch back in the composer at
-  any time). This matches the harness's own per-session precedence.
+  model. To keep an unset `default` (follow-official) from inheriting the
+  planner model after plan mode ends, the plugin snapshots the official route
+  at the plan-entry edge and restores it once at the plan-exit edge (a fixed
+  `default` role wins over the restore), then resumes pure pass-through. The
+  restore is edge-scoped: an unconfigured planner never snapshots, so
+  in-plan user picks are not clobbered.
