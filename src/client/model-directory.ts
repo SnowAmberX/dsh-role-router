@@ -1,16 +1,17 @@
 /**
  * Runtime model directory for the settings card: the provider-grouped catalog
- * the host assembles from `ctx.llm.listProviders()` × `listModels()` — the
- * same advisory catalog the official /model picker serves. Shared by the card
- * fields through one snapshot store; refreshes ride `llm/adapters-updated`
- * and `settings/document-updated` forwarded events.
+ * the host assembles for Host-generation selectors (`ctx.remote.session
+ * .modelCatalog()` — the same advisory catalog the official /model picker
+ * serves, with no Session anchor). Shared by the card fields through one
+ * snapshot store; refreshes ride the forwarded `llm/adapters-updated`,
+ * `settings/document-updated`, and `credentials/reference-updated` events,
+ * and `connection/reset` starts a new Host generation.
  */
 
 import type {
-  IApiClient, ModelCatalogFailure, ModelProviderGroup, SessionId,
+  ClientRemote, ModelCatalogFailure, ModelProviderGroup,
 } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 
 /** Directory snapshot the card fields render from. */
 export interface RoleRouterDirectoryState {
@@ -22,13 +23,11 @@ export interface RoleRouterDirectoryState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   /** Whole-request failure text; null when none. */
   error: string | null
-  /** Whether no session is open yet (the directory anchors on a session RPC). */
-  noSession: boolean
 }
 
 /** Fresh directory state. */
 function initialDirectory(): RoleRouterDirectoryState {
-  return { groups: [], failures: [], status: 'idle', error: null, noSession: false }
+  return { groups: [], failures: [], status: 'idle', error: null }
 }
 
 /** Resolve a model's display name from the loaded groups, falling back to its id. */
@@ -43,9 +42,10 @@ export function displayModelName(
 }
 
 /**
- * The settings card's directory controller: loads the host catalog through the
- * current session's models RPC (the groups are global; the session only
- * anchors the RPC) and keeps one snapshot store for all three fields.
+ * The settings card's directory controller: loads the Host-generation model
+ * catalog through the session remote's `modelCatalog()` RPC — a global
+ * catalog that needs no current Session — and keeps one snapshot store for
+ * all three fields.
  */
 export class RoleRouterDirectory {
   /** The shared snapshot store (uSES-safe). */
@@ -56,23 +56,17 @@ export class RoleRouterDirectory {
   private disposed = false
 
   constructor(
-    private readonly sessions: Pick<IApiClient['sessions'], 'models'>,
-    private readonly sessionId: () => SessionId | undefined,
+    private readonly session: Pick<ClientRemote['session'], 'modelCatalog'>,
   ) {}
 
   /** Refresh the advisory directory; failure preserves the last good groups. */
   async load(): Promise<void> {
     if (this.disposed) return
-    const sessionId = this.sessionId()
-    if (sessionId === undefined) {
-      this.store.update((s) => { s.status = 'ready'; s.error = null; s.noSession = true })
-      return
-    }
     const generation = ++this.generation
-    this.store.update((s) => { s.status = 'loading'; s.error = null; s.noSession = false })
-    let result
+    this.store.update((s) => { s.status = 'loading'; s.error = null })
+    let response
     try {
-      result = (await this.sessions.models({ sessionId })).result
+      response = await this.session.modelCatalog()
     } catch (error) {
       if (this.disposed || generation !== this.generation) return
       this.store.update((s) => {
@@ -82,20 +76,44 @@ export class RoleRouterDirectory {
       return
     }
     if (this.disposed || generation !== this.generation) return
-    if (!result.ok) {
+    if (!response.ok) {
       this.store.update((s) => {
         s.status = 'error'
-        s.error = `${result.error.code}: ${result.error.message}`
+        s.error = `${response.error.code}: ${response.error.message}`
       })
       return
     }
     this.store.update((s) => {
-      s.groups = result.value.groups
-      s.failures = result.value.failures
+      s.groups = response.value.groups
+      s.failures = response.value.failures
       s.status = 'ready'
       s.error = null
-      s.noSession = false
     })
+  }
+
+  /**
+   * Invalidate the loaded catalog; the next read reloads it.
+   * @param clear - whether values from the previous Host generation must be hidden.
+   */
+  private invalidate(clear: boolean): void {
+    this.generation += 1
+    if (clear) {
+      this.store.set(initialDirectory())
+    } else {
+      this.store.update((s) => { s.status = 'idle'; s.error = null })
+    }
+  }
+
+  /** Invalidate and reload the catalog after a Host-side model input changes. */
+  refresh(): void {
+    this.invalidate(false)
+    void this.load().catch(() => { /* the card exposes the shared error */ })
+  }
+
+  /** Clear Host-specific values and load the replacement Host generation. */
+  resetGeneration(): void {
+    this.invalidate(true)
+    void this.load().catch(() => { /* the card exposes the shared error */ })
   }
 
   /** Scope teardown: late settlements lose write access to the store. */

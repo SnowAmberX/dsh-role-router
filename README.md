@@ -30,7 +30,7 @@
 
 切换模型时，若角色未配置显式 `reasoningEffort`，则**剥离**继承的 adapter-owned effort（目标模型可能不支持原模型的推理档位；`prepareCall` 会拒绝未受支持的显式 effort）；配置了显式强度则写入并由 `prepareCall` 校验。透传的请求保留官方层装配的一切，包括推理强度。
 
-计划模式状态从会话日志的 `plan/mode` 事件折叠（`foldPlanMode`）；`ctx.planMode` 可见时优先读取（含 pending 意图）。
+计划模式状态由插件从会话日志的 `plan/mode` 事件本地折叠；`ctx.planMode` 可见时优先读取（含 pending 意图）。
 
 辅助模型调用（compaction、session-title）不经 `agent/request` 派发，不受影响；进程外子代理 provider（acp、codex 等）的请求不经过本进程，同样不受影响。
 

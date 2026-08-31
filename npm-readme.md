@@ -40,7 +40,7 @@ the role configures an explicit one (the routed model may not support the
 previous model's effort; `prepareCall` rejects unsupported explicit efforts);
 pass-through requests keep everything the official layer assembled,
 including its effort. Plan mode is folded from the durable `plan/mode`
-session events (`foldPlanMode`); `ctx.planMode` is consulted first when
+session events; `ctx.planMode` is consulted first when
 visible. Auxiliary model calls (compaction, session-title) and out-of-process
 subagent providers (acp, codex, …) are unaffected.
 

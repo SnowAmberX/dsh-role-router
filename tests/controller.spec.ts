@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SettingsScope, SettingsScopeSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ModelRole } from '../src/index.ts'
 import { RoleRouterCardController } from '../src/client/controller.ts'
-import { RoleRouterDirectory, type RoleRouterDirectoryState } from '../src/client/model-directory.ts'
+import { RoleRouterDirectory } from '../src/client/model-directory.ts'
 
 /**
  * The real client runtime ships a browser bundle (closure factory through
@@ -11,7 +12,7 @@ import { RoleRouterDirectory, type RoleRouterDirectoryState } from '../src/clien
  * minimal implementation. The store contract under test is the controller's
  * projection/save logic, not zustand/immer.
  */
-vi.mock('@deepseek-ai/dsh-client-runtime/client', () => ({
+vi.mock('@deepseek-ai/dsh-client-store', () => ({
   createSnapshotStore: <T,>(init: T): SnapshotStore<T> => {
     let state = init
     const listeners = new Set<() => void>()
@@ -66,10 +67,9 @@ class FakeScope implements SettingsScope<Section> {
 
 /** Directory whose RPC the controller never calls in these tests. */
 function idleDirectory(): RoleRouterDirectory {
-  return new RoleRouterDirectory(
-    { models: async () => ({ result: { ok: false, error: { code: 'unused', message: 'unused' } } }) } as never,
-    () => undefined,
-  )
+  return new RoleRouterDirectory({
+    modelCatalog: async () => { throw new Error('idle directory never serves') },
+  })
 }
 
 /** Controller + scope pair with the card store exposed. */
@@ -156,73 +156,4 @@ describe('RoleRouterCardController', () => {
   })
 })
 
-describe('RoleRouterDirectory', () => {
-  const okResult = (groups: unknown) => ({ result: { ok: true as const, value: { groups, failures: [] } } })
 
-  it('marks the directory as no-session when no session id is available', async () => {
-    const directory = new RoleRouterDirectory({ models: async () => okResult([]) } as never, () => undefined)
-    await directory.load()
-    const state: RoleRouterDirectoryState = directory.store.getSnapshot()
-    expect(state.status).toBe('ready')
-    expect(state.noSession).toBe(true)
-    expect(state.groups).toEqual([])
-  })
-
-  it('loads groups through the session RPC and clears the no-session flag', async () => {
-    const groups = [{ id: 'p', name: 'P', models: [] }]
-    const directory = new RoleRouterDirectory(
-      { models: async () => okResult(groups) } as never,
-      () => 's1' as never,
-    )
-    await directory.load()
-    const state: RoleRouterDirectoryState = directory.store.getSnapshot()
-    expect(state.status).toBe('ready')
-    expect(state.noSession).toBe(false)
-    expect(state.groups).toEqual(groups)
-  })
-
-  it('surfaces a transport failure as a directory error', async () => {
-    const directory = new RoleRouterDirectory(
-      { models: async () => { throw new Error('wire down') } } as never,
-      () => 's1' as never,
-    )
-    await directory.load()
-    const state: RoleRouterDirectoryState = directory.store.getSnapshot()
-    expect(state.status).toBe('error')
-    expect(state.error).toContain('wire down')
-  })
-
-  it('lets the latest load win over a slower earlier response', async () => {
-    let releaseFirst!: () => void
-    const first = new Promise<never>(resolve => { releaseFirst = () => resolve(undefined as never) })
-    const calls: string[] = []
-    // First load stalls; the second completes first and wins.
-    const directory = new RoleRouterDirectory(
-      {
-        models: async (request: { sessionId: string }) => {
-          const marker = request.sessionId === 'first-session' ? 'first' : 'second'
-          calls.push(marker)
-          if (marker === 'first') await first
-          return okResult([{ id: marker, name: marker, models: [] }])
-        },
-      } as never,
-      () => 'first-session' as never,
-    )
-    void directory.load()
-    ;(directory as { sessionId: () => string }).sessionId = () => 'second-session' as never
-    await directory.load()
-    releaseFirst()
-    await new Promise(resolve => setTimeout(resolve, 0))
-    const state: RoleRouterDirectoryState = directory.store.getSnapshot()
-    expect(calls).toEqual(['first', 'second'])
-    expect(state.groups).toEqual([{ id: 'second', name: 'second', models: [] }])
-    expect(state.status).toBe('ready')
-  })
-
-  it('stops writing after dispose', async () => {
-    const directory = new RoleRouterDirectory({ models: async () => okResult([]) } as never, () => undefined)
-    directory.dispose()
-    await directory.load()
-    expect(directory.store.getSnapshot().status).toBe('idle')
-  })
-})

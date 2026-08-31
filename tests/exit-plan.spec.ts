@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime, { CallId, createUserMessage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { installModelSelection, type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import PlanModeController, { foldPlanMode } from '@deepseek-ai/dsh-plan-mode'
+import PlanModeController from '@deepseek-ai/dsh-plan-mode'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import UserQuestionService, { type AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
 import * as modelRouter from '../src/index.ts'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
@@ -43,24 +44,26 @@ describe('exit_plan_mode approval routing', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(AgentLoop, { agents: [] })
     await ctx.plugin(PlanModeController, { section: 'Test plan mode instructions.' })
     await ctx.plugin(UserQuestionService)
-    const asked: AskUserQuestionRequest[] = []
-    ctx.userQuestions.registerProvider({
-      ask: (request) => {
-        asked.push(request)
-        return Promise.resolve({ answers: [{ id: 'plan-review', selected: ['Approve'] }] })
-      },
-    })
     await ctx.plugin(modelRouter, { default: DEFAULT, planner: PLANNER })
     const adapter = new MockAdapter([textResponse('still planning'), textResponse('now implementing')])
     ctx.llm.registerAdapter(['mock', 'deepseek-official'], adapter)
     const agent = ctx.agentLoop.create(SessionId('exit-plan-router'), { provider: 'mock', model: 'mock' })
     installModelSelection(agent.ctx, { current: { provider: 'mock', model: 'mock' }, assembled: undefined })
+    // Answer the plan-review question on the agent's scoped waterfall:
+    // `user-questions/request` is dispatched targeting the agent's scope, so
+    // the auto-approving answerer must listen there.
+    const asked: AskUserQuestionRequest[] = []
+    agent.ctx.on('user-questions/request', async (request) => {
+      asked.push(request)
+      return { answers: [{ id: 'plan-review', selected: ['Approve'] }] }
+    })
 
     // Baseline: a plan-mode request routes to the planner.
     ctx.planMode.set(agent, true)
@@ -72,7 +75,7 @@ describe('exit_plan_mode approval routing', () => {
     // Approve the plan through the REAL exit_plan_mode tool path, which only
     // records a pending { active: false } intent (flushed at the next pre-step).
     const exit = await ctx.tools.execute({
-      callId: CallId('call-exit-1'),
+      callId: ToolCallId('call-exit-1'),
       name: 'exit_plan_mode',
       arguments: { plan: '# The plan\n\nimplement it' },
       signal: new AbortController().signal,
@@ -81,13 +84,13 @@ describe('exit_plan_mode approval routing', () => {
     expect(exit.isError).toBe(false)
     if (exit.isError) throw new Error('expected an approved exit')
     expect(asked).toHaveLength(1)
-    // The fold stays plan until the boundary flush (silent pending exit).
-    expect(foldPlanMode(agent.session.events)).toBe(true)
+    // The logged fold stays plan until the boundary flush (silent pending exit).
+    expect(ctx.planMode.get(agent).active).toBe(true)
 
     // The NEXT request must route to the default model (official selection).
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'implement' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    expect(foldPlanMode(agent.session.events)).toBe(false)
+    expect(ctx.planMode.get(agent).active).toBe(false)
     const second = lastRequestConfig(agent)
     expect(second).toEqual(DEFAULT)
 

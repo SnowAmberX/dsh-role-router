@@ -7,6 +7,7 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as modelRouter from '../src/index.ts'
 import type { Config } from '../src/index.ts'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
@@ -27,6 +28,7 @@ async function harness(config: Config) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)

@@ -47,7 +47,7 @@ export interface ModelSelectFieldProps {
 function effortsOf(
   directory: RoleRouterDirectoryState,
   route: ModelRole | undefined,
-): ModelReasoningEffort[] | undefined {
+): readonly ModelReasoningEffort[] | undefined {
   if (route === undefined) return undefined
   const group = directory.groups.find(candidate => candidate.id === route.provider)
   const model = group?.models.find(candidate => candidate.id === route.model)
@@ -197,9 +197,7 @@ export function ModelSelectField(props: ModelSelectFieldProps) {
             </div>
           )}
           {directory.status === 'ready' && directory.groups.length === 0 && (
-            <div className={css.status}>
-              {directory.noSession ? t('directory.noSession') : t('directory.empty')}
-            </div>
+            <div className={css.status}>{t('directory.empty')}</div>
           )}
           {directory.failures.map(failure => (
             <div className={css.warning} key={failure.id}>

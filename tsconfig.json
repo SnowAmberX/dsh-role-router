@@ -19,7 +19,16 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "preserveSymlinks": true,
-    "types": []
+    "types": [],
+    // The profile's packages carry their own nested @deepseek-ai/cordis
+    // symlinks; under preserveSymlinks each nested path is a distinct module
+    // instance, so plugin-side `declare module '@deepseek-ai/cordis'`
+    // augmentations (e.g. the credentials forwarded-event declarations) never
+    // reach the Events interface this project resolves. Pinning the one
+    // module to a single file unifies the instance for every importer.
+    "paths": {
+      "@deepseek-ai/cordis": ["./node_modules/@deepseek-ai/cordis/lib/types/index.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["tests", "node_modules", "lib"]

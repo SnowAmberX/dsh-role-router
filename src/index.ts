@@ -15,7 +15,7 @@
  * every agent's `agent/request` and `system-prompt/assemble` dispatch —
  * including in-process subagents, whose scope chain still reaches the global
  * listener layer. Plan mode is read from the durable session log
- * (`plan/mode`, folded by `foldPlanMode`) — by the time `agent/request`
+ * (`plan/mode`, folded from the session events) — by the time `agent/request`
  * dispatches, an accepted pre-step has already flushed any pending selection,
  * so the fold matches exactly what the model saw in the `plan:policy`
  * section. `ctx.planMode` is consulted first when visible (pending-aware),
@@ -53,12 +53,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { ReasoningEffortId, type LlmCallConfig } from '@deepseek-ai/dsh-llm'
-import { foldPlanMode } from '@deepseek-ai/dsh-plan-mode'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
-// Type-only edges: resolve the agent-scoped event declarations and the
-// plan-mode service augmentation onto the Cordis context.
+// Type-only edges: resolve the agent-scoped event declarations, the plan-mode
+// service augmentation (including the `plan/mode` session event), and the
+// settings service augmentation onto the Cordis context.
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-plan-mode'
+import type {} from '@deepseek-ai/dsh-settings'
 
 /** The plugin's stable Cordis identity. */
 export const name = 'role-router'
@@ -103,7 +104,7 @@ export const Config: z<Config> = z.object({
 })
 
 /** Settings namespace owning the user-configured role routes. */
-export const ROLE_ROUTER_SETTINGS_NAMESPACE = settingsNamespace('role-router')
+export const ROLE_ROUTER_SETTINGS_NAMESPACE = 'role-router'
 
 /**
  * Settings sentinel for "this role is explicitly unset": the request follows
@@ -201,6 +202,39 @@ function checkRole(label: string, role: ModelRole | undefined): ModelRole {
   }
 }
 
+/**
+ * Fold the durable session log's `plan/mode` events: the last event's
+ * `active` value is the logged plan-mode state, inactive when none was
+ * recorded. Realm-independent fallback used when no `ctx.planMode` controller
+ * is visible to this context (e.g. plan-mode mounted behind a preset realm).
+ *
+ * The event shape is read structurally rather than through the `plan/mode`
+ * `SessionEventMap` augmentation: the `SessionEvent` union this plugin
+ * resolves against is built from a different copy of the session types than
+ * the one the plan-mode package augments, so narrowing on the typed union
+ * would report `plan/mode` as having no overlap.
+ */
+function foldPlanModeFromSession(agent: Agent): boolean {
+  let active = false
+  for (const rawEvent of agent.session.events) {
+    const event = rawEvent as {
+      type: string
+      data?: unknown
+    }
+    if (event.type !== 'plan/mode') continue
+    const data = event.data
+    if (
+      typeof data === 'object'
+      && data !== null
+      && 'active' in data
+      && typeof data.active === 'boolean'
+    ) {
+      active = data.active
+    }
+  }
+  return active
+}
+
 /** Whether plan mode is in force for the agent's next request. */
 function planActive(ctx: Context, agent: Agent): boolean {
   const controller = ctx.get('planMode')
@@ -208,7 +242,7 @@ function planActive(ctx: Context, agent: Agent): boolean {
     const state = controller.get(agent)
     return state.pending ?? state.active
   }
-  return foldPlanMode(agent.session.events)
+  return foldPlanModeFromSession(agent)
 }
 
 /**
@@ -243,13 +277,18 @@ export function apply(ctx: Context, config: Config): void {
   // next request without a restart. No settings service mounted keeps the
   // composition values.
   let source: () => RoleRouterSettings = () => ({})
-  installSettingsSection(ctx, ROLE_ROUTER_SETTINGS_NAMESPACE, RoleRouterSettingsSchema, {
-    default: composition.default,
-    planner: composition.planner,
-    subagent: composition.subagent,
-  }, {
-    setSource: current => { source = current },
-    onChange: () => {},
+  // Attach the optional settings consumer: the composition entry is the base
+  // layer while the settings service is present, and the entry is the fallback
+  // when it detaches. No settings service mounted keeps the composition values.
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, ROLE_ROUTER_SETTINGS_NAMESPACE, RoleRouterSettingsSchema, {
+      default: composition.default,
+      planner: composition.planner,
+      subagent: composition.subagent,
+    }, {
+      setSource: current => { source = current },
+      onChange: () => {},
+    })
   })
 
   // Expose the role-router settings namespace to Web configuration clients:

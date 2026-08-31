@@ -7,6 +7,7 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { installModelSelection, type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import AgentDefaultModelConfig from '@deepseek-ai/dsh-agent-default-model'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import * as modelRouter from '../src/index.ts'
@@ -37,6 +38,7 @@ async function harness(
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)

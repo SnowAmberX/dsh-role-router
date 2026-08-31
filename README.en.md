@@ -54,9 +54,8 @@ previous model's effort; `prepareCall` rejects unsupported explicit efforts);
 an explicit effort is applied and validated by `prepareCall`. Pass-through
 requests keep everything the official layer assembled, including its effort.
 
-Plan mode is folded from the durable `plan/mode` session events
-(`foldPlanMode`); `ctx.planMode` is consulted first when visible
-(pending-aware).
+Plan mode is folded locally from the durable `plan/mode` session events;
+`ctx.planMode` is consulted first when visible (pending-aware).
 
 Auxiliary model calls (compaction, session-title) do not dispatch through
 `agent/request` and are unaffected, as are out-of-process subagent providers

@@ -6,7 +6,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type { ModelRole } from '../index.ts'
 import type { RoleRouterKey } from './locales.ts'

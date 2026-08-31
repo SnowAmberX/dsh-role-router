@@ -6,8 +6,8 @@
  * (`SettingsScope.set`) and role objects are replaced as whole fields.
  */
 
-import type { SettingsScope, SettingsScopeSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ModelRole } from '../index.ts'
 import type { RoleRouterDirectory, RoleRouterDirectoryState } from './model-directory.ts'
 
@@ -109,7 +109,7 @@ export class RoleRouterCardController {
   private readonly staged = new Map<'default' | 'planner' | 'subagent', StagedEdit>()
   private saving = false
   private saveError: string | null = null
-  private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null, noSession: false }
+  private directoryState: RoleRouterDirectoryState = { groups: [], failures: [], status: 'idle', error: null }
   private readonly directoryDisposers: (() => void)[] = []
 
   /** @param scopes - the bound settings scope for the role-router namespace. */
