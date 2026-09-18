@@ -216,7 +216,7 @@ function checkRole(label: string, role: ModelRole | undefined): ModelRole {
  */
 function foldPlanModeFromSession(agent: Agent): boolean {
   let active = false
-  for (const rawEvent of agent.session.events) {
+  for (const rawEvent of agent.session.snapshotEvents()) {
     const event = rawEvent as {
       type: string
       data?: unknown

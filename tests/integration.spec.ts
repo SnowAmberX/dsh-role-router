@@ -86,7 +86,7 @@ function findEvent<T extends SessionEvent['type']>(
 }
 
 function lastRequestConfig(agent: Agent): { provider: string; model: string } {
-  const header = findEvent(agent.session.events, 'request/header')
+  const header = findEvent(agent.session.snapshotEvents(), 'request/header')
   return header.data.header.config
 }
 
@@ -172,7 +172,7 @@ describe('model-router through the agent loop', () => {
     ctx.planMode.set(agent, true)
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'plan' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    const header = findEvent(agent.session.events, 'request/header')
+    const header = findEvent(agent.session.snapshotEvents(), 'request/header')
     expect(header.data.header.system).toContain(`You are powered by ${PLANNER.model} via ${PLANNER.provider}.`)
   })
 

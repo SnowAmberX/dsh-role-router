@@ -60,13 +60,13 @@ function findEvent<T extends SessionEvent['type']>(
   return found as Extract<SessionEvent, { type: T }>
 }
 
-function lastRequestConfig(agent: { session: { events: readonly SessionEvent[] } }): { provider: string; model: string } {
-  const header = findEvent(agent.session.events, 'request/header')
+function lastRequestConfig(agent: { session: { snapshotEvents: () => readonly SessionEvent[] } }): { provider: string; model: string } {
+  const header = findEvent(agent.session.snapshotEvents(), 'request/header')
   return header.data.header.config
 }
 
-function lastSystem(agent: { session: { events: readonly SessionEvent[] } }): string {
-  const header = findEvent(agent.session.events, 'request/header')
+function lastSystem(agent: { session: { snapshotEvents: () => readonly SessionEvent[] } }): string {
+  const header = findEvent(agent.session.snapshotEvents(), 'request/header')
   return header.data.header.system
 }
 

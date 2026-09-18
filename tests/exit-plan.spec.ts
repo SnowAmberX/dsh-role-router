@@ -36,7 +36,7 @@ function findEvent<T extends SessionEvent['type']>(
 }
 
 function lastRequestConfig(agent: Agent): { provider: string; model: string } {
-  return findEvent(agent.session.events, 'request/header').data.header.config
+  return findEvent(agent.session.snapshotEvents(), 'request/header').data.header.config
 }
 
 describe('exit_plan_mode approval routing', () => {
