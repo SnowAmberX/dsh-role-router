@@ -59,7 +59,9 @@ import { ReasoningEffortId, type LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { planProjectionDefinition } from '@deepseek-ai/dsh-plan-mode'
+import type {} from '@deepseek-ai/dsh-plan-mode/types'
 import type {} from '@deepseek-ai/dsh-session-projection'
+import type {} from '@deepseek-ai/dsh-session-projection/types'
 import type {} from '@deepseek-ai/dsh-settings'
 
 /** The plugin's stable Cordis identity. */

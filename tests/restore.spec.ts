@@ -65,9 +65,10 @@ function lastRequestConfig(agent: { session: { snapshotEvents: () => readonly Se
   return header.data.header.config
 }
 
-function lastSystem(agent: { session: { snapshotEvents: () => readonly SessionEvent[] } }): string {
-  const header = findEvent(agent.session.snapshotEvents(), 'request/header')
-  return header.data.header.system
+function lastSystem(adapter: MockAdapter): string {
+  return adapter.requests.at(-1)?.messages.flatMap(message => message.role === 'system'
+    ? message.content.flatMap(block => block.type === 'text' ? [block.text] : [])
+    : []).join('\n') ?? ''
 }
 
 function say(agent: { followup: (message: unknown) => unknown }, text: string): void {
@@ -77,7 +78,7 @@ function say(agent: { followup: (message: unknown) => unknown }, text: string): 
 describe('plan-exit route restore', () => {
   it('A: restores the pre-plan official selection once when leaving plan mode', async () => {
     const { ctx, adapter } = await harness({ planner: P })
-    const agent = ctx.agentLoop.create(SessionId('restore-a'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-a'), A)
     adapter.script.push(textResponse('n1'), textResponse('n2'), textResponse('n3'), textResponse('n4'), textResponse('n5'))
 
     say(agent, 'one')
@@ -107,7 +108,7 @@ describe('plan-exit route restore', () => {
 
   it('B: keeps the snapshot untouched across several plan rounds', async () => {
     const { ctx, adapter } = await harness({ planner: P })
-    const agent = ctx.agentLoop.create(SessionId('restore-b'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-b'), A)
     adapter.script.push(
       textResponse('n'), textResponse('p1'), textResponse('p2'), textResponse('p3'),
       textResponse('exit'), textResponse('after'),
@@ -137,7 +138,7 @@ describe('plan-exit route restore', () => {
 
   it('C: a fixed default role wins over the restore on exit', async () => {
     const { ctx, adapter } = await harness({ default: D, planner: P })
-    const agent = ctx.agentLoop.create(SessionId('restore-c'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-c'), A)
     adapter.script.push(textResponse('n1'), textResponse('p'), textResponse('exit'), textResponse('n2'))
 
     say(agent, 'normal')
@@ -161,7 +162,7 @@ describe('plan-exit route restore', () => {
 
   it('D: never entering plan keeps pure pass-through', async () => {
     const { ctx, adapter } = await harness({ planner: P })
-    const agent = ctx.agentLoop.create(SessionId('restore-d'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-d'), A)
     adapter.script.push(textResponse('n1'), textResponse('n2'))
 
     say(agent, 'one')
@@ -173,8 +174,8 @@ describe('plan-exit route restore', () => {
 
   it('E: one session plan edge does not leak into another session', async () => {
     const { ctx, adapter } = await harness({ planner: P })
-    const a1 = ctx.agentLoop.create(SessionId('restore-e1'), A)
-    const a2 = ctx.agentLoop.create(SessionId('restore-e2'), A)
+    const a1 = await ctx.agentLoop.create(SessionId('restore-e1'), A)
+    const a2 = await ctx.agentLoop.create(SessionId('restore-e2'), A)
     adapter.script.push(
       textResponse('a1-normal'), textResponse('a1-plan'), textResponse('a2-normal'),
       textResponse('a1-exit'), textResponse('a2-normal2'),
@@ -206,7 +207,7 @@ describe('plan-exit route restore', () => {
 
   it('F: an unconfigured planner never snapshots or restores', async () => {
     const { ctx, adapter } = await harness({})
-    const agent = ctx.agentLoop.create(SessionId('restore-f'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-f'), A)
     adapter.script.push(textResponse('n'), textResponse('plan'), textResponse('exit'))
 
     say(agent, 'normal')
@@ -224,7 +225,7 @@ describe('plan-exit route restore', () => {
 
   it('G: re-entering plan snapshots the official route again', async () => {
     const { ctx, adapter } = await harness({ planner: P })
-    const agent = ctx.agentLoop.create(SessionId('restore-g'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-g'), A)
     adapter.script.push(
       textResponse('n'), textResponse('p1'), textResponse('exit1'), textResponse('n2'),
       textResponse('p2'), textResponse('exit2'),
@@ -260,24 +261,24 @@ describe('plan-exit route restore', () => {
       order: 0,
       text: () => 'You are powered by {{model}} via {{provider}}.',
     })
-    const agent = ctx.agentLoop.create(SessionId('restore-h'), A)
+    const agent = await ctx.agentLoop.create(SessionId('restore-h'), A)
     adapter.script.push(textResponse('n'), textResponse('p'), textResponse('exit'))
 
     say(agent, 'normal')
     await waitForIdle(ctx, agent)
-    expect(lastSystem(agent)).toContain('powered by mock-a via mock')
+    expect(lastSystem(adapter)).toContain('powered by mock-a via mock')
 
     ctx.planMode.set(agent, true)
     say(agent, 'plan')
     await waitForIdle(ctx, agent)
-    expect(lastSystem(agent)).toContain('powered by mock-planner via mock')
+    expect(lastSystem(adapter)).toContain('powered by mock-planner via mock')
 
     // The first post-plan turn must assemble the restored model, not the planner.
     ctx.planMode.set(agent, false)
     say(agent, 'exit')
     await waitForIdle(ctx, agent)
     expect(lastRequestConfig(agent)).toEqual(A)
-    expect(lastSystem(agent)).toContain('powered by mock-a via mock')
-    expect(lastSystem(agent)).not.toContain('mock-planner')
+    expect(lastSystem(adapter)).toContain('powered by mock-a via mock')
+    expect(lastSystem(adapter)).not.toContain('mock-planner')
   })
 })

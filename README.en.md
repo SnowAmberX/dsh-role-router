@@ -13,7 +13,7 @@ back to the default model — no manual intervention needed.
   independently; unconfigured roles pass through (follow the session
   default). `planner` is triggered automatically by plan mode (`/plan` and
   friends); `default` always tracks the official session model selection.
-- **Web UI**: a "Multi-role model routing" card on the settings page with
+- **Web UI**: a "Multi-role model routing" configuration page under Plugins with
   three model pickers (each with an optional reasoning-effort picker; same
   source as `/model` — the host's live, provider-grouped catalog,
   auto-refreshed), plus a composer-adjacent pill that shows the current
@@ -26,7 +26,7 @@ back to the default model — no manual intervention needed.
 
 ![Main UI with the composer model summary](img/main.png)
 
-![Multi-role model routing card on the settings page](img/setting.png)
+![Multi-role model routing configuration on the Plugins page](img/setting.png)
 
 ## Routing semantics
 
@@ -65,7 +65,7 @@ Auxiliary model calls (compaction, session-title) do not dispatch through
 
 The package declares `dsh.client` (platform: web) and provides two surfaces:
 
-1. **Settings → plugin configuration → "Multi-role model routing" card**: three
+1. **Plugins → Official → "Multi-role model routing"**: three
    model pickers (default / planner / subagent) fed by the host's live model
    catalog (provider-grouped, same source as `/model`, refreshed on
    `llm/adapters-updated`); after picking a model each field offers an optional
@@ -87,13 +87,13 @@ On install, the bundle inserts the `model-router` row with no config — **all
 three roles start unset**: requests pass through and the official layered
 selection applies. Two ways to personalize, settings first:
 
-### Settings page (user layer, recommended)
+### Plugins page (user layer, recommended)
 
-Settings → plugin configuration → "Multi-role model routing" card: saving
+Plugins → Official → "Multi-role model routing": saving
 writes the `role-router` namespace into `settings.yaml`
 (`{ default?, planner?, subagent? }`, each role being
 `{ provider, model, reasoningEffort? }`), applying to the next request
-without a restart. The settings page **does not write** cordis.patch.yml,
+without a restart. The Plugins page **does not write** cordis.patch.yml,
 and its values win over the composition layer.
 
 ### cordis.patch.yml (composition layer, optional)
@@ -168,15 +168,18 @@ and the conventions of the `packages/client/*` client plugin packages.
 ## Development
 
 ```bash
-pnpm install        # @deepseek-ai/* runtime deps are symlinked from the harness checkout (see below)
-pnpm build          # tsc (host half + types) + tsdown (client bundle)
-pnpm test           # vitest (host routing integration + config/classify units)
+pn install          # install generic build and test dependencies
+pn link:dsh         # link @deepseek-ai/* packages from the adjacent checkout
+pn build            # tsc (host half + types) + tsdown (client bundle)
+pn test             # vitest (host routing integration + config/classify units)
 ```
 
-`@deepseek-ai/*`, react, tsdown and lightningcss are provided through
-`node_modules` symlinks into the DeepSeek Harness checkout (the same
-flat-fallback mechanism official profiles use) — no npm installs. tsconfig
-enables `preserveSymlinks` so type resolution rides the same flat chain.
+`pn link:dsh` defaults to the adjacent `../deepseek-harness`; pass a path
+(`pn link:dsh -- /path/to/deepseek-harness`) or set `DSH_REPO` to override it.
+The script only updates symlinks and refuses to replace a real directory.
+Generic dependencies remain declared in this plugin and are reused through
+pnpm's content-addressable store. tsconfig enables `preserveSymlinks` and pins
+merge-extensible type outlets so declarations share one identity.
 
 ## Known limitations
 

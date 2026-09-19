@@ -7,14 +7,14 @@
 还在为计划与执行阶段手动切换模型而烦恼？`dsh-role-router` 替你自动完成：输入 `/plan` 进入计划模式，请求即自动路由到配置的 planner 模型；退出计划模式自动切回默认模型——全程无需手动干预。
 
 - **角色路由**：`default` / `planner` / `subagent` 三种角色独立配置——**配置了强制使用该模型，未配置则跟随官方模型选择器**；`planner` 由计划模式（`/plan` 等）自动触发。
-- **Web UI**：设置页「多角色模型路由」卡片提供三个模型下拉框（并可单独指定推理强度），选项与 `/model` 同源（host 实时模型目录，provider 分组，自动刷新）；composer 旁附模型摘要胶囊，当前选择一目了然。
+- **Web UI**：Plugins 页「多角色模型路由」配置页提供三个模型下拉框（并可单独指定推理强度），选项与 `/model` 同源（host 实时模型目录，provider 分组，自动刷新）；composer 旁附模型摘要胶囊，当前选择一目了然。
 - **两级配置**：支持 cordis.yml（composition 层）与 `role-router` settings 命名空间（用户层，后者优先）；保存即生效，无需重启。
 
 ## 预览
 
 ![主界面与 composer 模型摘要](img/main.png)
 
-![设置页中的多角色模型路由卡片](img/setting.png)
+![Plugins 页中的多角色模型路由配置](img/setting.png)
 
 ## 路由语义
 
@@ -38,7 +38,7 @@
 
 插件声明了 `dsh.client`（platform: web），向 Web GUI 提供两处界面：
 
-1. **设置 → 插件配置 →「多角色模型路由」卡片**：三个模型下拉框（默认模型 / planner / subagent），选项来自 host 实时模型目录（provider 分组，与 `/model` 同源，`llm/adapters-updated` 自动刷新）；每个字段选中模型后还可单独指定**推理强度**，档位来自该模型在目录中的 `reasoning.efforts`（适配器声明，非硬编码）。
+1. **Plugins → Official →「多角色模型路由」**：三个模型下拉框（默认模型 / planner / subagent），选项来自 host 实时模型目录（provider 分组，与 `/model` 同源，`llm/adapters-updated` 自动刷新）；每个字段选中模型后还可单独指定**推理强度**，档位来自该模型在目录中的 `reasoning.efforts`（适配器声明，非硬编码）。
    - 三个角色字段（默认模型 / planner / subagent）都写入 `role-router` 设置命名空间，保存后下一请求即生效（无需重启）；**未配置的角色跟随官方模型选择器**，配置了则强制使用所选模型。
 2. **会话输入框旁（composer）**：胶囊摘要显示 `默认模型: <配置的 default 或当前会话选择> · planner: <配置的 planner 模型>`。官方模型席位（下拉选择）与 `/model` 命令保持原样。
 
@@ -90,12 +90,13 @@ dsh plugin --profile web add link:/path/to/this/repo
 ## 开发
 
 ```bash
-pnpm install        # @deepseek-ai/* 运行时依赖由 harness checkout 软链提供（见下）
-pnpm build          # tsc（host 半区 + 类型）+ tsdown（client bundle）
-pnpm test           # vitest（host 路由集成测试 + 配置/分类单测）
+pn install          # 安装通用构建/测试依赖
+pn link:dsh         # 链接相邻 deepseek-harness 中的 @deepseek-ai/* 包
+pn build            # tsc（host 半区 + 类型）+ tsdown（client bundle）
+pn test             # vitest（host 路由集成测试 + 配置/分类单测）
 ```
 
-`@deepseek-ai/*` 及 react/tsdown/lightningcss 等依赖通过 `node_modules` 软链指向 DeepSeek Harness checkout（与官方 profile 的 flat-fallback 机制一致），无需 npm 安装；tsconfig 开启 `preserveSymlinks` 使类型解析走同一平铺链。
+`pn link:dsh` 默认使用相邻的 `../deepseek-harness`；也可传入路径（`pn link:dsh -- /path/to/deepseek-harness`）或设置 `DSH_REPO`。脚本只更新符号链接，遇到同名真实目录会停止，不会覆盖。通用依赖由插件自己的 `devDependencies` 声明并通过 pnpm 内容寻址存储复用；tsconfig 开启 `preserveSymlinks`，并固定 merge-extensible 类型出口以统一声明身份。
 
 ## 已知限制
 

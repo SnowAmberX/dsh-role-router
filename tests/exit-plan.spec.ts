@@ -54,7 +54,7 @@ describe('exit_plan_mode approval routing', () => {
     await ctx.plugin(modelRouter, { default: DEFAULT, planner: PLANNER })
     const adapter = new MockAdapter([textResponse('still planning'), textResponse('now implementing')])
     ctx.llm.registerAdapter(['mock', 'deepseek-official'], adapter)
-    const agent = ctx.agentLoop.create(SessionId('exit-plan-router'), { provider: 'mock', model: 'mock' })
+    const agent = await ctx.agentLoop.create(SessionId('exit-plan-router'), { provider: 'mock', model: 'mock' })
     installModelSelection(agent.ctx, { current: { provider: 'mock', model: 'mock' }, assembled: undefined })
     // Answer the plan-review question on the agent's scoped waterfall:
     // `user-questions/request` is dispatched targeting the agent's scope, so

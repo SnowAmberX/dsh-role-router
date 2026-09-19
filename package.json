@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && tsdown",
     "bundle": "tsdown",
+    "link:dsh": "bash scripts/link-dsh-peers.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
@@ -30,12 +31,15 @@
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-agent": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-api-remotes": "^0.1.6-alpha.2",
+    "@deepseek-ai/dsh-api-session-controller": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-connection": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-locale": "^0.1.6-alpha.2",
+    "@deepseek-ai/dsh-client-store": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-ui-conversation": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-ui-model-selection": "^0.1.6-alpha.2",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "^0.1.6-alpha.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-ui-settings": "^0.1.6-alpha.2",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-llm": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-plan-mode": "^0.1.6-alpha.2",
@@ -44,15 +48,13 @@
     "@deepseek-ai/dsh-settings": "^0.1.6-alpha.2",
     "@deepseek-ai/dsh-system-prompt": "^0.1.6-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.1",
-    "react": "^18.2.0",
-    "@deepseek-ai/dsh-client-store": "^0.1.6-alpha.2",
-    "@deepseek-ai/dsh-api-session-controller": "^0.1.6-alpha.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "^0.1.6-alpha.2"
+    "react": "^18.2.0"
   },
   "devDependencies": {
+    "@types/react": "~18.3.1",
+    "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8",
-    "@types/react": "~18.3.1"
+    "vitest": "^4.1.8"
   },
   "license": "BSD-3-Clause",
   "keywords": [
@@ -72,6 +74,7 @@
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-model-selection",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-settings"
       ],
       "platform": "web"

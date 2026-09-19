@@ -53,7 +53,7 @@ async function harness(
   const adapter = new MockAdapter([], options.reasoning)
   // Serve both the harness route and the role routes under one scripted adapter.
   ctx.llm.registerAdapter(['mock', 'deepseek-official'], adapter)
-  const agent = ctx.agentLoop.create(SessionId('router-main'), { provider: 'mock', model: 'mock' })
+  const agent = await ctx.agentLoop.create(SessionId('router-main'), { provider: 'mock', model: 'mock' })
   // The official model-selection layer real deployments install per agent:
   // it applies the session-local selection (composer pick > latest logged
   // request > global default) downstream of the router, so an unset role
@@ -88,6 +88,12 @@ function findEvent<T extends SessionEvent['type']>(
 function lastRequestConfig(agent: Agent): { provider: string; model: string } {
   const header = findEvent(agent.session.snapshotEvents(), 'request/header')
   return header.data.header.config
+}
+
+function lastSystem(adapter: MockAdapter): string {
+  return adapter.requests.at(-1)?.messages.flatMap(message => message.role === 'system'
+    ? message.content.flatMap(block => block.type === 'text' ? [block.text] : [])
+    : []).join('\n') ?? ''
 }
 
 describe('model-router through the agent loop', () => {
@@ -153,7 +159,7 @@ describe('model-router through the agent loop', () => {
     expect(lastRequestConfig(child.agent)).toEqual(SUBAGENT)
 
     // The parent enters plan mode; the child still uses the subagent role.
-    const parent = ctx.agentLoop.create(SessionId('router-parent'), { provider: 'mock', model: 'mock' })
+    const parent = await ctx.agentLoop.create(SessionId('router-parent'), { provider: 'mock', model: 'mock' })
     ctx.planMode.set(parent, true)
     child.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'task two' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, child.agent)
@@ -172,8 +178,8 @@ describe('model-router through the agent loop', () => {
     ctx.planMode.set(agent, true)
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'plan' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    const header = findEvent(agent.session.snapshotEvents(), 'request/header')
-    expect(header.data.header.system).toContain(`You are powered by ${PLANNER.model} via ${PLANNER.provider}.`)
+    expect(lastSystem(adapter))
+      .toContain(`You are powered by ${PLANNER.model} via ${PLANNER.provider}.`)
   })
 
   it('passes an unset default role through the per-agent selection, not the global default', async () => {

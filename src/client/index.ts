@@ -22,7 +22,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ModelRole } from '../index.ts'
 // Type-only edges: the slot registry (renderer), the locale merge, the
 // settingsScope merge, the composer seat declarations, the official
-// settings-card slot declaration, the official model-directory service
+// Plugins-page slot declaration, the official model-directory service
 // declaration, the remote carrier (ClientRemote + forwarded events), and the
 // connection lifecycle events.
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -30,7 +30,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-connection/client'
@@ -92,14 +92,14 @@ export function apply(ctx: Context): void {
   // and hide the reasoning-effort picker until the menu's first open.
   void directory.load().catch(() => { /* surfaced on the store */ })
 
-  // The settings card: staged form over the role-router namespace.
-  // `settings.plugin.item` is a keyed slot (key = the settings namespace the
-  // card edits), so the registration MUST carry `key` — a missing key fails
-  // the whole client apply.
+  // The Plugins-page entry: a summary in the Official list and a staged form
+  // on its own page. The page owns the title and navigation chrome.
   const card = new RoleRouterCardController({ role: roleScope }, directory)
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    key: ROLE_ROUTER_NS,
+  ctx.slots.inject('plugins.item', () => ctx.slots.register({
+    name: 'plugins.item',
+    id: ROLE_ROUTER_NS,
+    order: 50,
+    label: () => ctx.locale.bind(NS)('card.title'),
     locale: NS,
     inject: () => card.inject(),
   }, RoleRouterCard))
