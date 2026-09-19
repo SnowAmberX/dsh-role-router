@@ -90,13 +90,13 @@ dsh plugin --profile web add link:/path/to/this/repo
 ## 开发
 
 ```bash
-pn install          # 安装通用构建/测试依赖
-pn link:dsh         # 链接相邻 deepseek-harness 中的 @deepseek-ai/* 包
-pn build            # tsc（host 半区 + 类型）+ tsdown（client bundle）
-pn test             # vitest（host 路由集成测试 + 配置/分类单测）
+pnpm install          # 安装通用构建/测试依赖
+pnpm link:dsh         # 链接相邻 deepseek-harness 中的 @deepseek-ai/* 包
+pnpm build            # tsc（host 半区 + 类型）+ tsdown（client bundle）
+pnpm test             # vitest（host 路由集成测试 + 配置/分类单测）
 ```
 
-`pn link:dsh` 默认使用相邻的 `../deepseek-harness`；也可传入路径（`pn link:dsh -- /path/to/deepseek-harness`）或设置 `DSH_REPO`。脚本只更新符号链接，遇到同名真实目录会停止，不会覆盖。通用依赖由插件自己的 `devDependencies` 声明并通过 pnpm 内容寻址存储复用；tsconfig 开启 `preserveSymlinks`，并固定 merge-extensible 类型出口以统一声明身份。
+`pnpm link:dsh` 默认使用相邻的 `../deepseek-harness`；也可传入路径（`pnpm link:dsh -- /path/to/deepseek-harness`）或设置 `DSH_REPO`。脚本只更新符号链接，遇到同名真实目录会停止，不会覆盖。通用依赖由插件自己的 `devDependencies` 声明并通过 pnpm 内容寻址存储复用；tsconfig 开启 `preserveSymlinks`，并固定 merge-extensible 类型出口以统一声明身份。
 
 ## 已知限制
 

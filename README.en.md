@@ -168,14 +168,14 @@ and the conventions of the `packages/client/*` client plugin packages.
 ## Development
 
 ```bash
-pn install          # install generic build and test dependencies
-pn link:dsh         # link @deepseek-ai/* packages from the adjacent checkout
-pn build            # tsc (host half + types) + tsdown (client bundle)
-pn test             # vitest (host routing integration + config/classify units)
+pnpm install          # install generic build and test dependencies
+pnpm link:dsh         # link @deepseek-ai/* packages from the adjacent checkout
+pnpm build            # tsc (host half + types) + tsdown (client bundle)
+pnpm test             # vitest (host routing integration + config/classify units)
 ```
 
-`pn link:dsh` defaults to the adjacent `../deepseek-harness`; pass a path
-(`pn link:dsh -- /path/to/deepseek-harness`) or set `DSH_REPO` to override it.
+`pnpm link:dsh` defaults to the adjacent `../deepseek-harness`; pass a path
+(`pnpm link:dsh -- /path/to/deepseek-harness`) or set `DSH_REPO` to override it.
 The script only updates symlinks and refuses to replace a real directory.
 Generic dependencies remain declared in this plugin and are reused through
 pnpm's content-addressable store. tsconfig enables `preserveSymlinks` and pins
